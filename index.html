@@ -122,11 +122,11 @@
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
                         <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
-                        <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Casualty Prediction</p>
+                        <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Death Probability Prediction</p>
                     </div>
                     <nav className="flex gap-6">
                         <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
-                        <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. CASUALTY SIMULATION</button>
+                        <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. DEATH PROBABILITY</button>
                     </nav>
                 </header>
 
@@ -147,8 +147,8 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Iran");
-        const [actors, setActors] = useState("Military, Protestors");
+        const [incident, setIncident] = useState("Iran protests");
+        const [actors, setActors] = useState("Government", "protestors");
         const [progress, setProgress] = useState("");
 
         // Clear "isNew" flag after animation completes
@@ -206,7 +206,7 @@
 
             const sources = [
                 "New York Times", "Washington Post", "BBC", 
-                "Associated Press", "Reuters"
+                "Associated Press", "Reuters", "Economist"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
@@ -441,17 +441,18 @@
             const resultsB = [];
             const resultsCombined = [];
             
-            // Use casualty data to calibrate baseline if available
-            let baselineCasualties = 0;
-            if (casualtyData) {
-                baselineCasualties = parseFloat(casualtyData.average);
+            // Use casualty data to inform baseline probability if available
+            let observedDeathProb = 0.5; // Default baseline
+            if (casualtyData && casualtyData.total > 0) {
+                // Higher casualties → higher death probability
+                observedDeathProb = Math.min(0.95, casualtyData.average / 20);
             }
             
-            // Define Markov Chain States based on casualty levels
+            // Define Markov Chain States based on death probability levels
             const states = {
-                LOW: { name: 'Low', range: [0, 5], index: 0 },
-                MEDIUM: { name: 'Medium', range: [6, 15], index: 1 },
-                HIGH: { name: 'High', range: [16, 50], index: 2 }
+                LOW: { name: 'Low', range: [0.0, 0.3], index: 0 },
+                MEDIUM: { name: 'Medium', range: [0.3, 0.7], index: 1 },
+                HIGH: { name: 'High', range: [0.7, 1.0], index: 2 }
             };
 
             // Build transition matrix based on actor behaviors
@@ -465,7 +466,7 @@
 
                 // Adjust based on behaviors
                 if (behaviors.ideational) {
-                    // Ideational increases high-casualty transitions
+                    // Ideational increases high-probability transitions
                     matrix[0][2] += 0.15; // LOW -> HIGH
                     matrix[1][2] += 0.20; // MED -> HIGH
                     matrix[2][2] += 0.15; // HIGH -> HIGH (persistence)
@@ -501,7 +502,7 @@
                 }
 
                 if (behaviors.positional) {
-                    // Positional dramatically increases high casualties
+                    // Positional dramatically increases high probability states
                     matrix[0][2] += 0.25;
                     matrix[1][2] += 0.25;
                     matrix[2][2] += 0.20;
@@ -545,8 +546,8 @@
                 return trajectory;
             };
 
-            // Convert state to casualty number
-            const stateToCasualty = (state) => {
+            // Convert state to death probability
+            const stateToProbability = (state) => {
                 const stateKeys = ['LOW', 'MEDIUM', 'HIGH'];
                 const stateObj = states[stateKeys[state]];
                 const [min, max] = stateObj.range;
@@ -555,10 +556,6 @@
 
             const matrixA = buildTransitionMatrix(actorA.behaviors);
             const matrixB = buildTransitionMatrix(actorB.behaviors);
-            
-            // Store transition matrices for display
-            window.transitionMatrixA = matrixA;
-            window.transitionMatrixB = matrixB;
             
             // Calculate steady-state probabilities (eigenvector method approximation)
             const calculateSteadyState = (matrix) => {
@@ -584,49 +581,39 @@
                 const trajectoryA = runMarkovChain(matrixA, 10); // 10 time steps
                 const trajectoryB = runMarkovChain(matrixB, 10);
                 
-                // Get final state casualties
+                // Get final state probabilities
                 const finalStateA = trajectoryA[trajectoryA.length - 1];
                 const finalStateB = trajectoryB[trajectoryB.length - 1];
                 
-                const casualtyA = stateToCasualty(finalStateA);
-                const casualtyB = stateToCasualty(finalStateB);
+                const probA = stateToProbability(finalStateA);
+                const probB = stateToProbability(finalStateB);
                 
-                resultsA.push(casualtyA);
-                resultsB.push(casualtyB);
+                resultsA.push(probA);
+                resultsB.push(probB);
                 
-                // Combined uses maximum of both
-                resultsCombined.push(Math.max(casualtyA, casualtyB));
+                // Combined uses maximum of both (highest risk)
+                resultsCombined.push(Math.max(probA, probB));
             }
             
-            // Also compute probabilities (for backward compatibility)
-            const casualtiesA = resultsA;
-            const casualtiesB = resultsB;
-            const casualtiesCombined = resultsCombined;
-            
-            const maxCasualties = Math.max(...casualtiesCombined, 50);
-            
             setSimResults({ 
-                actorA: resultsA.map(c => c / maxCasualties), 
-                actorB: resultsB.map(c => c / maxCasualties), 
-                combined: resultsCombined.map(c => c / maxCasualties),
-                casualtiesA: casualtiesA,
-                casualtiesB: casualtiesB,
-                casualtiesCombined: casualtiesCombined,
-                maxCasualties: maxCasualties,
+                actorA: resultsA, 
+                actorB: resultsB, 
+                combined: resultsCombined,
                 transitionMatrixA: matrixA,
                 transitionMatrixB: matrixB,
                 steadyStateA: steadyStateA,
-                steadyStateB: steadyStateB
+                steadyStateB: steadyStateB,
+                observedDeathProb: observedDeathProb
             });
-            plotDistribution(casualtiesA, casualtiesB, casualtiesCombined, maxCasualties);
+            plotDistribution(resultsA, resultsB, resultsCombined, observedDeathProb);
         };
 
-        const plotDistribution = (casualtiesA, casualtiesB, casualtiesCombined, maxCasualties) => {
+        const plotDistribution = (resultsA, resultsB, resultsCombined, observedProb) => {
             const traces = [];
 
             if (activeActor === 'A' || activeActor === 'both') {
                 traces.push({
-                    x: casualtiesA,
+                    x: resultsA,
                     type: 'histogram',
                     nbinsx: 30,
                     name: actorA.name,
@@ -637,7 +624,7 @@
 
             if (activeActor === 'B' || activeActor === 'both') {
                 traces.push({
-                    x: casualtiesB,
+                    x: resultsB,
                     type: 'histogram',
                     nbinsx: 30,
                     name: actorB.name,
@@ -648,7 +635,7 @@
 
             if (activeActor === 'both') {
                 traces.push({
-                    x: casualtiesCombined,
+                    x: resultsCombined,
                     type: 'histogram',
                     nbinsx: 30,
                     name: 'Combined (Max)',
@@ -657,25 +644,24 @@
                 });
             }
 
-            // Add observed casualty line if available
-            if (casualtyData && casualtyData.average) {
-                const avgCasualty = parseFloat(casualtyData.average);
+            // Add observed probability line if available
+            if (casualtyData && observedProb) {
                 traces.push({
-                    x: [avgCasualty, avgCasualty],
+                    x: [observedProb, observedProb],
                     y: [0, 100],
                     type: 'scatter',
                     mode: 'lines',
-                    name: 'Observed Avg',
+                    name: 'Inferred from Data',
                     line: { color: '#fbbf24', width: 3, dash: 'dash' }
                 });
             }
 
             const layout = {
-                title: { text: 'Predicted Casualty Distribution', font: { color: '#f8fafc' } },
+                title: { text: 'Death Probability Distribution', font: { color: '#f8fafc' } },
                 xaxis: { 
-                    title: 'Estimated Casualties', 
+                    title: 'Probability of Death (0-1)', 
                     color: '#94a3b8', 
-                    range: [0, maxCasualties]
+                    range: [0, 1]
                 },
                 yaxis: { title: 'Frequency', color: '#94a3b8' },
                 plot_bgcolor: '#0f172a',
@@ -689,9 +675,9 @@
             Plotly.newPlot('chart', traces, layout, { responsive: true });
         };
 
-        const avgCasA = simResults ? (simResults.casualtiesA.reduce((a, b) => a + b, 0) / simResults.casualtiesA.length).toFixed(1) : '---';
-        const avgCasB = simResults ? (simResults.casualtiesB.reduce((a, b) => a + b, 0) / simResults.casualtiesB.length).toFixed(1) : '---';
-        const avgCasCombined = simResults ? (simResults.casualtiesCombined.reduce((a, b) => a + b, 0) / simResults.casualtiesCombined.length).toFixed(1) : '---';
+        const avgProbA = simResults ? (simResults.actorA.reduce((a, b) => a + b, 0) / simResults.actorA.length).toFixed(3) : '---';
+        const avgProbB = simResults ? (simResults.actorB.reduce((a, b) => a + b, 0) / simResults.actorB.length).toFixed(3) : '---';
+        const avgProbCombined = simResults ? (simResults.combined.reduce((a, b) => a + b, 0) / simResults.combined.length).toFixed(3) : '---';
 
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -713,6 +699,14 @@
                                     <span className="text-slate-400">Segments Analyzed:</span>
                                     <span className="text-white font-bold">{casualtyData.segments}</span>
                                 </div>
+                                {simResults && simResults.observedDeathProb && (
+                                    <div className="pt-2 mt-2 border-t border-yellow-500/30">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-400">Inferred Death Prob:</span>
+                                            <span className="text-yellow-300 font-bold">{simResults.observedDeathProb.toFixed(3)}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -771,18 +765,18 @@
 
                     {/* Results */}
                     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-4">PREDICTED CASUALTIES</h2>
+                        <h2 className="text-emerald-400 font-bold mb-4">DEATH PROBABILITY</h2>
                         <div className="space-y-3">
                             <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
-                                <div className="text-2xl font-bold text-blue-400">{avgCasA}</div>
+                                <div className="text-2xl font-bold text-blue-400">{avgProbA}</div>
                                 <div className="text-[10px] text-slate-400">Actor A Avg</div>
                             </div>
                             <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
-                                <div className="text-2xl font-bold text-red-400">{avgCasB}</div>
+                                <div className="text-2xl font-bold text-red-400">{avgProbB}</div>
                                 <div className="text-[10px] text-slate-400">Actor B Avg</div>
                             </div>
                             <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
-                                <div className="text-2xl font-bold text-emerald-400">{avgCasCombined}</div>
+                                <div className="text-2xl font-bold text-emerald-400">{avgProbCombined}</div>
                                 <div className="text-[10px] text-slate-400">Combined Max</div>
                             </div>
                         </div>
@@ -791,7 +785,7 @@
 
                 <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-emerald-400 font-bold">CASUALTY PREDICTION</h2>
+                        <h2 className="text-emerald-400 font-bold">DEATH PROBABILITY PREDICTION</h2>
                         <div className="flex gap-2">
                             <button 
                                 onClick={() => setActiveActor('A')}
@@ -821,7 +815,7 @@
                             <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
                                 <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 MARKOV CHAIN MODEL</h3>
                                 <p className="text-[10px] text-cyan-200">
-                                    Transition matrices show the probability of moving between casualty states (Low: 0-5, Medium: 6-15, High: 16+) over time. 
+                                    Transition matrices show the probability of moving between death probability states (Low: 0-0.3, Medium: 0.3-0.7, High: 0.7-1.0) over time. 
                                     Each row represents the current state, columns show next-state probabilities. Actor behaviors modify these transition probabilities.
                                     Steady-state shows long-term equilibrium distribution.
                                 </p>
@@ -908,7 +902,7 @@
                     )}
                     
                     <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                        Markov Chain simulation (1000 iterations × 10 time steps). Yellow dashed line shows observed average from NLP analysis.
+                        Markov Chain simulation (1000 iterations × 10 time steps). Yellow dashed line shows baseline probability inferred from observed casualties.
                     </p>
                 </div>
             </div>
