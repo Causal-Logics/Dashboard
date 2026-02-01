@@ -163,8 +163,8 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Iran");
-        const [actors, setActors] = useState("Government","protestors");
+        const [incident, setIncident] = useState("Sanctuary city policy");
+        const [actors, setActors] = useState("ICE, Mayor");
         const [progress, setProgress] = useState("");
 
         // Clear "isNew" flag after animation completes
@@ -225,8 +225,8 @@
             ];
 
             const sources = [
-                "New York Times", "Washington Post", "BBC", 
-                "Associated Press", "Reuters"
+                "New York Times", "Washington Post", "Local News Network", 
+                "Associated Press", "Reuters", "City Tribune"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
