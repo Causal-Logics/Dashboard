@@ -122,7 +122,7 @@
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
                         <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
-                        <p className="text-xs text-slate-400">NLP Extraction + Monte Carlo Simulation</p>
+                        <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Casualty Prediction</p>
                     </div>
                     <nav className="flex gap-6">
                         <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
@@ -147,8 +147,8 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Sanctuary city policy");
-        const [actors, setActors] = useState("ICE, Mayor");
+        const [incident, setIncident] = useState("Iran");
+        const [actors, setActors] = useState("Military, Protestors");
         const [progress, setProgress] = useState("");
 
         // Clear "isNew" flag after animation completes
@@ -205,8 +205,8 @@
             ];
 
             const sources = [
-                "New York Times", "Washington Post", "Local News Network", 
-                "Associated Press", "Reuters", "City Tribune"
+                "New York Times", "Washington Post", "BBC", 
+                "Associated Press", "Reuters"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
@@ -447,45 +447,176 @@
                 baselineCasualties = parseFloat(casualtyData.average);
             }
             
+            // Define Markov Chain States based on casualty levels
+            const states = {
+                LOW: { name: 'Low', range: [0, 5], index: 0 },
+                MEDIUM: { name: 'Medium', range: [6, 15], index: 1 },
+                HIGH: { name: 'High', range: [16, 50], index: 2 }
+            };
+
+            // Build transition matrix based on actor behaviors
+            const buildTransitionMatrix = (behaviors) => {
+                // Base transition probabilities (neutral state)
+                let matrix = [
+                    [0.70, 0.25, 0.05],  // From LOW to [LOW, MED, HIGH]
+                    [0.40, 0.45, 0.15],  // From MEDIUM to [LOW, MED, HIGH]
+                    [0.20, 0.50, 0.30]   // From HIGH to [LOW, MED, HIGH]
+                ];
+
+                // Adjust based on behaviors
+                if (behaviors.ideational) {
+                    // Ideational increases high-casualty transitions
+                    matrix[0][2] += 0.15; // LOW -> HIGH
+                    matrix[1][2] += 0.20; // MED -> HIGH
+                    matrix[2][2] += 0.15; // HIGH -> HIGH (persistence)
+                    matrix[0][0] -= 0.15;
+                    matrix[1][1] -= 0.15;
+                    matrix[2][1] -= 0.15;
+                }
+
+                if (behaviors.psychological) {
+                    // Psychological increases medium-to-high transitions
+                    matrix[1][2] += 0.12;
+                    matrix[0][1] += 0.10;
+                    matrix[1][1] -= 0.12;
+                    matrix[0][0] -= 0.10;
+                }
+
+                if (behaviors.structural) {
+                    // Structural moderately increases all transitions
+                    matrix[0][1] += 0.08;
+                    matrix[1][2] += 0.08;
+                    matrix[0][0] -= 0.08;
+                    matrix[1][1] -= 0.08;
+                }
+
+                if (behaviors.institutional) {
+                    // Institutional decreases escalation
+                    matrix[0][0] += 0.10;
+                    matrix[1][0] += 0.10;
+                    matrix[2][0] += 0.15;
+                    matrix[0][1] -= 0.05;
+                    matrix[1][2] -= 0.10;
+                    matrix[2][2] -= 0.15;
+                }
+
+                if (behaviors.positional) {
+                    // Positional dramatically increases high casualties
+                    matrix[0][2] += 0.25;
+                    matrix[1][2] += 0.25;
+                    matrix[2][2] += 0.20;
+                    matrix[0][0] -= 0.15;
+                    matrix[0][1] -= 0.10;
+                    matrix[1][1] -= 0.20;
+                    matrix[2][1] -= 0.20;
+                }
+
+                // Normalize rows to sum to 1.0
+                matrix = matrix.map(row => {
+                    const sum = row.reduce((a, b) => a + b, 0);
+                    return row.map(val => val / sum);
+                });
+
+                return matrix;
+            };
+
+            // Run Markov Chain simulation
+            const runMarkovChain = (transitionMatrix, steps) => {
+                const trajectory = [];
+                let currentState = 0; // Start in LOW state
+                
+                for (let i = 0; i < steps; i++) {
+                    trajectory.push(currentState);
+                    
+                    // Transition to next state based on probabilities
+                    const rand = Math.random();
+                    const probs = transitionMatrix[currentState];
+                    let cumProb = 0;
+                    
+                    for (let nextState = 0; nextState < 3; nextState++) {
+                        cumProb += probs[nextState];
+                        if (rand < cumProb) {
+                            currentState = nextState;
+                            break;
+                        }
+                    }
+                }
+                
+                return trajectory;
+            };
+
+            // Convert state to casualty number
+            const stateToCasualty = (state) => {
+                const stateKeys = ['LOW', 'MEDIUM', 'HIGH'];
+                const stateObj = states[stateKeys[state]];
+                const [min, max] = stateObj.range;
+                return min + Math.random() * (max - min);
+            };
+
+            const matrixA = buildTransitionMatrix(actorA.behaviors);
+            const matrixB = buildTransitionMatrix(actorB.behaviors);
+            
+            // Store transition matrices for display
+            window.transitionMatrixA = matrixA;
+            window.transitionMatrixB = matrixB;
+            
+            // Calculate steady-state probabilities (eigenvector method approximation)
+            const calculateSteadyState = (matrix) => {
+                // Power method: multiply state vector by matrix many times
+                let state = [1/3, 1/3, 1/3]; // Start uniform
+                for (let i = 0; i < 100; i++) {
+                    const newState = [0, 0, 0];
+                    for (let j = 0; j < 3; j++) {
+                        for (let k = 0; k < 3; k++) {
+                            newState[j] += state[k] * matrix[k][j];
+                        }
+                    }
+                    state = newState;
+                }
+                return state;
+            };
+
+            const steadyStateA = calculateSteadyState(matrixA);
+            const steadyStateB = calculateSteadyState(matrixB);
+            
             for (let i = 0; i < iterations; i++) {
-                // Actor A simulation
-                let probA = PROBABILITY_MAP['None'];
-                if (actorA.behaviors.structural) probA = Math.max(probA, PROBABILITY_MAP['Structural']);
-                if (actorA.behaviors.ideational) probA = Math.max(probA, PROBABILITY_MAP['Ideational']);
-                if (actorA.behaviors.institutional) probA = Math.max(probA, PROBABILITY_MAP['Institutional']);
-                if (actorA.behaviors.psychological) probA = Math.max(probA, PROBABILITY_MAP['Psychological']);
-                if (actorA.behaviors.positional) probA = Math.max(probA, PROBABILITY_MAP['Pos']);
-                const varianceA = (Math.random() - 0.5) * 0.1;
-                resultsA.push(Math.max(0, Math.min(1, probA + varianceA)));
-
-                // Actor B simulation
-                let probB = PROBABILITY_MAP['None'];
-                if (actorB.behaviors.structural) probB = Math.max(probB, PROBABILITY_MAP['Structural']);
-                if (actorB.behaviors.ideational) probB = Math.max(probB, PROBABILITY_MAP['Ideational']);
-                if (actorB.behaviors.institutional) probB = Math.max(probB, PROBABILITY_MAP['Institutional']);
-                if (actorB.behaviors.psychological) probB = Math.max(probB, PROBABILITY_MAP['Psychological']);
-                if (actorB.behaviors.positional) probB = Math.max(probB, PROBABILITY_MAP['Pos']);
-                const varianceB = (Math.random() - 0.5) * 0.1;
-                resultsB.push(Math.max(0, Math.min(1, probB + varianceB)));
-
-                // Combined interaction (max of both)
-                resultsCombined.push(Math.max(resultsA[i], resultsB[i]));
+                // Run Markov chains for both actors
+                const trajectoryA = runMarkovChain(matrixA, 10); // 10 time steps
+                const trajectoryB = runMarkovChain(matrixB, 10);
+                
+                // Get final state casualties
+                const finalStateA = trajectoryA[trajectoryA.length - 1];
+                const finalStateB = trajectoryB[trajectoryB.length - 1];
+                
+                const casualtyA = stateToCasualty(finalStateA);
+                const casualtyB = stateToCasualty(finalStateB);
+                
+                resultsA.push(casualtyA);
+                resultsB.push(casualtyB);
+                
+                // Combined uses maximum of both
+                resultsCombined.push(Math.max(casualtyA, casualtyB));
             }
             
-            // Convert probabilities to casualty estimates (scale by baseline if available)
-            const maxCasualties = baselineCasualties > 0 ? baselineCasualties * 2 : 50;
-            const casualtiesA = resultsA.map(p => p * maxCasualties);
-            const casualtiesB = resultsB.map(p => p * maxCasualties);
-            const casualtiesCombined = resultsCombined.map(p => p * maxCasualties);
+            // Also compute probabilities (for backward compatibility)
+            const casualtiesA = resultsA;
+            const casualtiesB = resultsB;
+            const casualtiesCombined = resultsCombined;
+            
+            const maxCasualties = Math.max(...casualtiesCombined, 50);
             
             setSimResults({ 
-                actorA: resultsA, 
-                actorB: resultsB, 
-                combined: resultsCombined,
+                actorA: resultsA.map(c => c / maxCasualties), 
+                actorB: resultsB.map(c => c / maxCasualties), 
+                combined: resultsCombined.map(c => c / maxCasualties),
                 casualtiesA: casualtiesA,
                 casualtiesB: casualtiesB,
                 casualtiesCombined: casualtiesCombined,
-                maxCasualties: maxCasualties
+                maxCasualties: maxCasualties,
+                transitionMatrixA: matrixA,
+                transitionMatrixB: matrixB,
+                steadyStateA: steadyStateA,
+                steadyStateB: steadyStateB
             });
             plotDistribution(casualtiesA, casualtiesB, casualtiesCombined, maxCasualties);
         };
@@ -683,8 +814,101 @@
                         </div>
                     </div>
                     <div id="chart" className="w-full h-[400px]"></div>
+                    
+                    {/* Markov Chain Transition Matrices */}
+                    {simResults && simResults.transitionMatrixA && (
+                        <div className="mt-6">
+                            <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
+                                <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 MARKOV CHAIN MODEL</h3>
+                                <p className="text-[10px] text-cyan-200">
+                                    Transition matrices show the probability of moving between casualty states (Low: 0-5, Medium: 6-15, High: 16+) over time. 
+                                    Each row represents the current state, columns show next-state probabilities. Actor behaviors modify these transition probabilities.
+                                    Steady-state shows long-term equilibrium distribution.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-slate-800/50 p-4 rounded border border-blue-500/30">
+                                    <h3 className="text-xs font-bold text-blue-400 mb-2">ACTOR A TRANSITION MATRIX</h3>
+                                    <div className="text-[9px] font-mono">
+                                        <div className="flex gap-1 mb-1 text-slate-500">
+                                            <span className="w-12"></span>
+                                            <span className="w-16 text-center">→Low</span>
+                                            <span className="w-16 text-center">→Med</span>
+                                            <span className="w-16 text-center">→High</span>
+                                        </div>
+                                        {simResults.transitionMatrixA.map((row, i) => (
+                                            <div key={i} className="flex gap-1 mb-1">
+                                                <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
+                                                {row.map((val, j) => (
+                                                    <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-blue-400 font-bold' : val > 0.2 ? 'text-blue-300' : 'text-slate-500'}`}>
+                                                        {val.toFixed(2)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="bg-slate-800/50 p-4 rounded border border-red-500/30">
+                                    <h3 className="text-xs font-bold text-red-400 mb-2">ACTOR B TRANSITION MATRIX</h3>
+                                    <div className="text-[9px] font-mono">
+                                        <div className="flex gap-1 mb-1 text-slate-500">
+                                            <span className="w-12"></span>
+                                            <span className="w-16 text-center">→Low</span>
+                                            <span className="w-16 text-center">→Med</span>
+                                            <span className="w-16 text-center">→High</span>
+                                        </div>
+                                        {simResults.transitionMatrixB.map((row, i) => (
+                                            <div key={i} className="flex gap-1 mb-1">
+                                                <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
+                                                {row.map((val, j) => (
+                                                    <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-red-400 font-bold' : val > 0.2 ? 'text-red-300' : 'text-slate-500'}`}>
+                                                        {val.toFixed(2)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Steady State Probabilities */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30">
+                                    <h3 className="text-xs font-bold text-blue-400 mb-2">Actor A Steady-State</h3>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">Low:</span>
+                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[0] * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">Medium:</span>
+                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[1] * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">High:</span>
+                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[2] * 100).toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                                <div className="bg-red-900/20 p-3 rounded border border-red-500/30">
+                                    <h3 className="text-xs font-bold text-red-400 mb-2">Actor B Steady-State</h3>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">Low:</span>
+                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[0] * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">Medium:</span>
+                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[1] * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-slate-400">High:</span>
+                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[2] * 100).toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                        Monte Carlo simulation with 1000 iterations. Yellow dashed line shows observed average casualties from NLP analysis.
+                        Markov Chain simulation (1000 iterations × 10 time steps). Yellow dashed line shows observed average from NLP analysis.
                     </p>
                 </div>
             </div>
