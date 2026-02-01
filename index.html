@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,198 +8,349 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <style>
-        body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; }
-        .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
-        .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
-        .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
+```
+<style>
+    body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; margin: 0; }
+    .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
+    .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
+    .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+</style>
+```
+
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, createElement: h } = React;
+```
+<script type="text/babel">
+    const { useState, useEffect, useMemo, createElement: h } = React;
 
-        // --- SHARED DATA ---
-        const CAUSAL_AXIOMS = {
-            Structural: { keywords: ["resource", "constraint", "budget", "funding", "material", "physical"] },
-            Institutional: { keywords: ["law", "policy", "regulation", "mandate", "court", "authority"] },
-            Ideational: { keywords: ["culture", "identity", "belief", "value", "tradition", "symbol"] },
-            Psychological: { keywords: ["fear", "anger", "emotion", "bias", "instinct", "trauma"] }
+    // --- SHARED DATA ---
+    const CAUSAL_AXIOMS = {
+        Structural: { keywords: ["resource", "constraint", "budget", "funding", "material", "physical"] },
+        Institutional: { keywords: ["law", "policy", "regulation", "mandate", "court", "authority"] },
+        Ideational: { keywords: ["culture", "identity", "belief", "value", "tradition", "symbol"] },
+        Psychological: { keywords: ["fear", "anger", "emotion", "bias", "instinct", "trauma"] }
+    };
+
+    const PROBABILITY_MAP = {
+        'None': 0.05, 'Structural': 0.35, 'Ideational': 0.75, 'Institutional': 0.08,
+        'Psychological': 0.12, 'Pos': 0.88, 'Structural+Ideational': 0.55
+    };
+
+    // --- COMPONENTS ---
+    function App() {
+        const [activeTab, setActiveTab] = useState('research');
+        const [analysisHistory, setAnalysisHistory] = useState([]);
+        const [selectedActorProfile, setSelectedActorProfile] = useState(null);
+
+        // Function to "Bridge" the two codes
+        const bridgeToSimulation = (actorName, scores) => {
+            setSelectedActorProfile({
+                name: actorName,
+                structural: scores.Structural > 0,
+                institutional: scores.Institutional > 0,
+                ideational: scores.Ideational > 0,
+                psychological: scores.Psychological > 0,
+                positional: Math.random() > 0.5 // Simulated detection
+            });
+            setActiveTab('simulation');
         };
 
-        const PROBABILITY_MAP = {
-            'None': 0.05, 'Structural': 0.35, 'Ideational': 0.75, 'Institutional': 0.08,
-            'Psychological': 0.12, 'Pos': 0.88, 'Structural+Ideational': 0.55
-        };
+        return (
+            <div className="min-h-screen flex flex-col">
+                {/* Header */}
+                <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
+                        <p className="text-xs text-slate-400">NLP Extraction + Monte Carlo Simulation</p>
+                    </div>
+                    <nav className="flex gap-6">
+                        <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
+                        <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. CASUALTY SIMULATION</button>
+                    </nav>
+                </header>
 
-        // --- COMPONENTS ---
-        function App() {
-            const [activeTab, setActiveTab] = useState('research');
-            const [analysisHistory, setAnalysisHistory] = useState([]);
-            const [selectedActorProfile, setSelectedActorProfile] = useState(null);
+                <main className="flex-1 p-6">
+                    {activeTab === 'research' ?
+                        <ResearchModule onActorExport={bridgeToSimulation} history={analysisHistory} setHistory={setAnalysisHistory} /> :
+                        <SimulationModule importedProfile={selectedActorProfile} />
+                    }
+                </main>
+            </div>
+        );
+    }
 
-            // Function to "Bridge" the two codes
-            const bridgeToSimulation = (actorName, scores) => {
-                setSelectedActorProfile({
-                    name: actorName,
-                    structural: scores.Structural > 0,
-                    institutional: scores.Institutional > 0,
-                    ideational: scores.Ideational > 0,
-                    psychological: scores.Psychological > 0,
-                    positional: Math.random() > 0.5 // Simulated detection
+    function ResearchModule({ onActorExport, history, setHistory }) {
+        const [loading, setLoading] = useState(false);
+        const [incident, setIncident] = useState("Ukraine");
+        const [actors, setActors] = useState("Russian military, Ukrainian military");
+        const [progress, setProgress] = useState("");
+
+        const generateMockSegments = (incidentText, actorList) => {
+            const actorArray = actorList.split(',').map(a => a.trim());
+            const templates = [
+                {
+                    text: "The institutional framework requires compliance with federal regulations and legal mandates...",
+                    scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 }
+                },
+                {
+                    text: "Resource constraints and budget limitations prevent full implementation of the policy...",
+                    scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 }
+                },
+                {
+                    text: "Community identity and cultural values drive strong resistance to the proposed changes...",
+                    scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 }
+                },
+                {
+                    text: "Fear and uncertainty among residents have escalated tensions in the community...",
+                    scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 }
+                },
+                {
+                    text: "Court rulings and regulatory authority shape the boundaries of permissible action...",
+                    scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 }
+                },
+                {
+                    text: "Traditional beliefs and symbolic meanings inform the stakeholder response patterns...",
+                    scores: { Structural: 0, Institutional: 1, Ideational: 4, Psychological: 1 }
+                },
+                {
+                    text: "Physical infrastructure and material resources determine operational capacity...",
+                    scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 }
+                },
+                {
+                    text: "Emotional reactions and cognitive biases influence decision-making processes...",
+                    scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 }
+                }
+            ];
+
+            const sources = [
+                "New York Times", "Washington Post", "Local News Network", 
+                "Associated Press", "Reuters", "City Tribune"
+            ];
+
+            const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
+            const segments = [];
+
+            for (let i = 0; i < numSegments; i++) {
+                const template = templates[i % templates.length];
+                const actor = actorArray[Math.floor(Math.random() * actorArray.length)];
+                const source = sources[Math.floor(Math.random() * sources.length)];
+                
+                segments.push({
+                    id: Date.now() + i,
+                    timestamp: new Date().toLocaleDateString(),
+                    actor: actor,
+                    source: source,
+                    text: template.text,
+                    scores: template.scores
                 });
-                setActiveTab('simulation');
-            };
+            }
 
-            return (
-                <div className="min-h-screen flex flex-col">
-                    {/* Header */}
-                    <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
-                        <div>
-                            <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
-                            <p className="text-xs text-slate-400">NLP Extraction + Monte Carlo Simulation</p>
-                        </div>
-                        <nav className="flex gap-6">
-                            <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
-                            <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. CASUALTY SIMULATION</button>
-                        </nav>
-                    </header>
+            return segments;
+        };
 
-                    <main className="flex-1 p-6">
-                        {activeTab === 'research' ?
-                            <ResearchModule onActorExport={bridgeToSimulation} history={analysisHistory} setHistory={setAnalysisHistory} /> :
-                            <SimulationModule importedProfile={selectedActorProfile} />
-                        }
-                    </main>
-                </div>
-            );
-        }
-
-        function ResearchModule({ onActorExport, history, setHistory }) {
-            const [loading, setLoading] = useState(false);
-            const [incident, setIncident] = useState("Sanctuary city policy");
-            const [actors, setActors] = useState("ICE, Mayor");
-
-            const handleSearch = () => {
-                setLoading(true);
-                // Simulate NLP Analysis Pipeline
+        const handleSearch = () => {
+            setLoading(true);
+            setProgress("Searching news sources...");
+            
+            setTimeout(() => {
+                setProgress("Extracting article segments...");
+                
                 setTimeout(() => {
-                    const mockSegment = {
-                        id: Date.now(),
-                        timestamp: new Date().toLocaleDateString(),
-                        actor: actors.split(',')[0],
-                        text: "The institutional framework requires compliance with federal regulations...",
-                        scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 }
-                    };
-                    setHistory([mockSegment, ...history]);
-                    setLoading(false);
-                }, 1500);
-            };
+                    setProgress("Running NLP classification...");
+                    
+                    setTimeout(() => {
+                        const newSegments = generateMockSegments(incident, actors);
+                        setHistory([...newSegments, ...history]);
+                        setProgress("");
+                        setLoading(false);
+                    }, 800);
+                }, 800);
+            }, 800);
+        };
 
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-4 flex items-center gap-2"><span>🔍</span> INCIDENT PARAMETERS</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-slate-500 block mb-1">INCIDENT DESCRIPTION</label>
-                                <input value={incident} onChange={e => setIncident(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-500 block mb-1">KEY ACTORS</label>
-                                <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
-                            </div>
-                            <button onClick={handleSearch} className="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded font-bold transition-all">
-                                {loading ? "PROCESSING NLP..." : "START AUTOMATED RESEARCH"}
-                            </button>
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <h2 className="text-emerald-400 font-bold mb-4 flex items-center gap-2"><span>🔍</span> INCIDENT PARAMETERS</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">INCIDENT DESCRIPTION</label>
+                            <input value={incident} onChange={e => setIncident(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
                         </div>
-                    </section>
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">KEY ACTORS (comma separated)</label>
+                            <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
+                        </div>
+                        <button onClick={handleSearch} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            {loading ? "PROCESSING NLP..." : "START AUTOMATED RESEARCH"}
+                        </button>
+                        {progress && (
+                            <div className="bg-blue-900/20 border border-blue-500/50 text-blue-400 text-xs p-3 rounded flex items-center gap-2">
+                                <span className="animate-pulse">●</span> {progress}
+                            </div>
+                        )}
+                    </div>
+                </section>
 
-                    <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-4">📈 LATEST ANALYZED SEGMENTS</h2>
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
-                            {history.map(item => (
+                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-emerald-400 font-bold">📈 LATEST ANALYZED SEGMENTS</h2>
+                        {history.length > 0 && (
+                            <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
+                                {history.length} segments
+                            </span>
+                        )}
+                    </div>
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
+                        {history.length === 0 ? (
+                            <p className="text-sm text-slate-500 italic text-center py-8">No segments analyzed yet. Start automated research to begin.</p>
+                        ) : (
+                            history.map(item => (
                                 <div key={item.id} className="axiom-card p-4 rounded-lg">
                                     <div className="flex justify-between mb-2">
-                                        <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
+                                        <div>
+                                            <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
+                                            {item.source && <span className="text-[10px] text-slate-500 ml-2">via {item.source}</span>}
+                                        </div>
                                         <span className="text-[10px] text-slate-500">{item.timestamp}</span>
                                     </div>
                                     <p className="text-xs italic text-slate-300 mb-3">"{item.text}"</p>
                                     <div className="flex justify-between items-center">
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 flex-wrap">
                                             {Object.entries(item.scores).map(([k, v]) => v > 0 && (
-                                                <span key={k} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">{k}</span>
+                                                <span key={k} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                                                    {k}: {v}
+                                                </span>
                                             ))}
                                         </div>
-                                        <button onClick={() => onActorExport(item.actor, item.scores)} className="text-[10px] bg-emerald-900/50 text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded hover:bg-emerald-500 hover:text-white transition-all">
+                                        <button onClick={() => onActorExport(item.actor, item.scores)} className="text-[10px] bg-emerald-900/50 text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded hover:bg-emerald-500 hover:text-white transition-all whitespace-nowrap ml-2">
                                             SEND TO SIMULATOR →
                                         </button>
                                     </div>
                                 </div>
+                            ))
+                        )}
+                    </div>
+                </section>
+            </div>
+        );
+    }
+
+    function SimulationModule({ importedProfile }) {
+        const [behaviors, setBehaviors] = useState({
+            structural: true, ideational: false, institutional: false, psychological: false, positional: false
+        });
+        const [simResults, setSimResults] = useState(null);
+
+        useEffect(() => {
+            if (importedProfile) {
+                setBehaviors({
+                    structural: importedProfile.structural,
+                    ideational: importedProfile.ideational,
+                    institutional: importedProfile.institutional,
+                    psychological: importedProfile.psychological,
+                    positional: importedProfile.positional
+                });
+            }
+        }, [importedProfile]);
+
+        useEffect(() => {
+            runSimulation();
+        }, [behaviors]);
+
+        const runSimulation = () => {
+            const iterations = 1000;
+            const results = [];
+            
+            for (let i = 0; i < iterations; i++) {
+                let casualtyProb = PROBABILITY_MAP['None'];
+                
+                if (behaviors.structural) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Structural']);
+                if (behaviors.ideational) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Ideational']);
+                if (behaviors.institutional) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Institutional']);
+                if (behaviors.psychological) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Psychological']);
+                if (behaviors.positional) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Pos']);
+                
+                // Add some variance
+                const variance = (Math.random() - 0.5) * 0.1;
+                results.push(Math.max(0, Math.min(1, casualtyProb + variance)));
+            }
+            
+            setSimResults(results);
+            plotDistribution(results);
+        };
+
+        const plotDistribution = (results) => {
+            const trace = {
+                x: results,
+                type: 'histogram',
+                nbinsx: 30,
+                marker: { color: '#10b981', opacity: 0.7 }
+            };
+
+            const layout = {
+                title: { text: 'Casualty Probability Distribution', font: { color: '#f8fafc' } },
+                xaxis: { title: 'Probability', color: '#94a3b8', range: [0, 1] },
+                yaxis: { title: 'Frequency', color: '#94a3b8' },
+                plot_bgcolor: '#0f172a',
+                paper_bgcolor: '#0f172a',
+                font: { color: '#f8fafc' }
+            };
+
+            Plotly.newPlot('chart', [trace], layout, { responsive: true });
+        };
+
+        const avgProb = simResults ? (simResults.reduce((a, b) => a + b, 0) / simResults.length).toFixed(3) : '---';
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                        <h2 className="text-emerald-400 font-bold mb-4">ACTOR PROFILE</h2>
+                        {importedProfile && <div className="mb-4 p-2 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 text-xs rounded">DATA IMPORTED: {importedProfile.name}</div>}
+                        <div className="space-y-2">
+                            {Object.keys(behaviors).map(key => (
+                                <button
+                                    key={key}
+                                    onClick={() => setBehaviors(prev => ({...prev, [key]: !prev[key]}))}
+                                    className={`w-full text-left p-3 rounded border text-xs font-bold transition-all ${behaviors[key] ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    {key.toUpperCase()} {behaviors[key] ? '✓' : '✗'}
+                                </button>
                             ))}
                         </div>
-                    </section>
-                </div>
-            );
-        }
+                    </div>
 
-        function SimulationModule({ importedProfile }) {
-            const [behaviors, setBehaviors] = useState({
-                structural: true, ideational: false, institutional: false, psychological: false, positional: false
-            });
-
-            useEffect(() => {
-                if (importedProfile) {
-                    setBehaviors({
-                        structural: importedProfile.structural,
-                        ideational: importedProfile.ideational,
-                        institutional: importedProfile.institutional,
-                        psychological: importedProfile.psychological,
-                        positional: importedProfile.positional
-                    });
-                }
-            }, [importedProfile]);
-
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                            <h2 className="text-emerald-400 font-bold mb-4">ACTOR PROFILE</h2>
-                            {importedProfile && <div className="mb-4 p-2 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 text-xs rounded">DATA IMPORTED: {importedProfile.name}</div>}
-                            <div className="space-y-2">
-                                {Object.keys(behaviors).map(key => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setBehaviors(prev => ({...prev, [key]: !prev[key]}))}
-                                        className={`w-full text-left p-3 rounded border text-xs font-bold transition-all ${behaviors[key] ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                    >
-                                        {key.toUpperCase()} {behaviors[key] ? '✓' : '✗'}
-                                    </button>
-                                ))}
-                            </div>
+                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                        <h2 className="text-emerald-400 font-bold mb-2">RESULTS</h2>
+                        <div className="text-center">
+                            <div className="text-4xl font-bold text-emerald-400">{avgProb}</div>
+                            <div className="text-xs text-slate-500">Avg Casualty Probability</div>
                         </div>
                     </div>
-
-                    <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
-                        <h2 className="text-emerald-400 font-bold mb-4">PROBABILITY DISTRIBUTION</h2>
-                        <div id="chart" className="w-full h-[400px]"></div>
-                        <p className="text-[10px] text-slate-500 mt-4 italic text-center">Run simulation to visualize casualty variance based on selected causal logics.</p>
-                    </div>
                 </div>
-            );
-        }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(h(App));
-    </script>
+                <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
+                    <h2 className="text-emerald-400 font-bold mb-4">PROBABILITY DISTRIBUTION</h2>
+                    <div id="chart" className="w-full h-[400px]"></div>
+                    <p className="text-[10px] text-slate-500 mt-4 italic text-center">Monte Carlo simulation with 1000 iterations based on selected causal logics.</p>
+                </div>
+            </div>
+        );
+    }
 
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(h(App));
+</script>
+```
+
 </body>
 </html>
