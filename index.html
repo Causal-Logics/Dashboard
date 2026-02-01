@@ -92,7 +92,8 @@
 
             const actorSet = new Set();
             const sourceSet = new Set();
-            let totalCasualties = 0;
+            const casualtyReports = [];
+            let trueCasualtyCount = null;
 
             segments.forEach(segment => {
                 Object.keys(aggregated).forEach(key => {
@@ -100,16 +101,31 @@
                 });
                 actorSet.add(segment.actor);
                 sourceSet.add(segment.source);
-                totalCasualties += segment.casualties || 0;
+                if (segment.casualties !== undefined) {
+                    casualtyReports.push(segment.casualties);
+                }
+                // Get true casualty count (should be same for all segments)
+                if (segment.trueCasualties !== undefined && trueCasualtyCount === null) {
+                    trueCasualtyCount = segment.trueCasualties;
+                }
             });
 
             const actorList = Array.from(actorSet).join(', ');
             const profileName = `Aggregated: ${actorList} (${segments.length} segments, ${sourceSet.size} sources)`;
 
+            // Calculate casualty statistics (different sources reporting same incident)
+            const avgCasualties = casualtyReports.length > 0 ? 
+                casualtyReports.reduce((a, b) => a + b, 0) / casualtyReports.length : 0;
+            const minCasualties = casualtyReports.length > 0 ? Math.min(...casualtyReports) : 0;
+            const maxCasualties = casualtyReports.length > 0 ? Math.max(...casualtyReports) : 0;
+
             const casualtyData = {
-                total: totalCasualties,
-                average: (totalCasualties / segments.length).toFixed(1),
+                average: parseFloat(avgCasualties.toFixed(1)), // Average of all reports (consensus)
+                min: minCasualties,
+                max: maxCasualties,
+                true: trueCasualtyCount, // The actual casualty count
                 segments: segments.length,
+                reports: casualtyReports,
                 perSource: segments.map(s => ({ source: s.source, casualties: s.casualties }))
             };
 
@@ -147,8 +163,8 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Iran protests");
-        const [actors, setActors] = useState("Government", "protestors");
+        const [incident, setIncident] = useState("Iran");
+        const [actors, setActors] = useState("Government","protestors");
         const [progress, setProgress] = useState("");
 
         // Clear "isNew" flag after animation completes
@@ -161,52 +177,56 @@
 
         const generateMockSegments = (incidentText, actorList) => {
             const actorArray = actorList.split(',').map(a => a.trim());
+            
+            // Generate ONE true casualty count for this incident that all sources will report (with variance)
+            const trueCasualties = Math.floor(Math.random() * 20) + 1; // 1-20 casualties for the incident
+            
             const templates = [
                 {
                     text: "The institutional framework requires compliance with federal regulations and legal mandates...",
                     scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 },
-                    casualties: Math.floor(Math.random() * 3) // Low casualties for institutional
+                    baseVariance: 0.1 // Low variance for institutional reports (more accurate)
                 },
                 {
                     text: "Resource constraints and budget limitations prevent full implementation of the policy...",
                     scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 },
-                    casualties: Math.floor(Math.random() * 5)
+                    baseVariance: 0.15
                 },
                 {
                     text: "Community identity and cultural values drive strong resistance to the proposed changes...",
                     scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 },
-                    casualties: Math.floor(Math.random() * 15) + 5 // Higher for ideational conflicts
+                    baseVariance: 0.25 // Higher variance for ideational (less accurate reporting)
                 },
                 {
                     text: "Fear and uncertainty among residents have escalated tensions in the community...",
                     scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 },
-                    casualties: Math.floor(Math.random() * 12) + 3 // Moderate-high for psychological
+                    baseVariance: 0.2
                 },
                 {
                     text: "Court rulings and regulatory authority shape the boundaries of permissible action...",
                     scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 },
-                    casualties: Math.floor(Math.random() * 2)
+                    baseVariance: 0.1
                 },
                 {
                     text: "Traditional beliefs and symbolic meanings inform the stakeholder response patterns...",
                     scores: { Structural: 0, Institutional: 1, Ideational: 4, Psychological: 1 },
-                    casualties: Math.floor(Math.random() * 10) + 5
+                    baseVariance: 0.2
                 },
                 {
                     text: "Physical infrastructure and material resources determine operational capacity...",
                     scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 },
-                    casualties: Math.floor(Math.random() * 8) + 2
+                    baseVariance: 0.15
                 },
                 {
                     text: "Emotional reactions and cognitive biases influence decision-making processes...",
                     scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 },
-                    casualties: Math.floor(Math.random() * 10) + 2
+                    baseVariance: 0.2
                 }
             ];
 
             const sources = [
                 "New York Times", "Washington Post", "BBC", 
-                "Associated Press", "Reuters", "Economist"
+                "Associated Press", "Reuters"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
@@ -226,6 +246,10 @@
                     second: '2-digit' 
                 });
                 
+                // Each source reports the same incident with slight variance
+                const variance = template.baseVariance || 0.15;
+                const reportedCasualties = Math.max(0, Math.round(trueCasualties * (1 + (Math.random() - 0.5) * 2 * variance)));
+                
                 segments.push({
                     id: Date.now() + i,
                     timestamp: timeStr,
@@ -233,7 +257,8 @@
                     source: source,
                     text: template.text,
                     scores: template.scores,
-                    casualties: template.casualties,
+                    casualties: reportedCasualties,
+                    trueCasualties: trueCasualties, // Store the true count for reference
                     isNew: true
                 });
             }
@@ -300,7 +325,7 @@
                 </section>
 
                 <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex justify-between items-center mb-2">
                         <h2 className="text-emerald-400 font-bold">📈 LATEST ANALYZED SEGMENTS</h2>
                         <div className="flex gap-2 items-center">
                             {history.length > 0 && (
@@ -324,6 +349,11 @@
                             )}
                         </div>
                     </div>
+                    {history.length > 0 && (
+                        <div className="text-[10px] text-cyan-300 bg-cyan-900/10 border border-cyan-500/20 p-2 rounded mb-3">
+                            ℹ️ Multiple sources reporting same incident. Casualty counts show variation across sources, not separate incidents.
+                        </div>
+                    )}
                     <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
                         {history.length === 0 ? (
                             <p className="text-sm text-slate-500 italic text-center py-8">No segments analyzed yet. Start automated research to begin.</p>
@@ -337,8 +367,8 @@
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {item.casualties !== undefined && (
-                                                <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded font-bold">
-                                                    {item.casualties} casualties
+                                                <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded font-bold" title={`Reported: ${item.casualties}${item.trueCasualties ? ' | Actual: ' + item.trueCasualties : ''}`}>
+                                                    {item.casualties} reported
                                                 </span>
                                             )}
                                             <span className="text-[10px] text-slate-500">{item.timestamp}</span>
@@ -378,6 +408,10 @@
         const [simResults, setSimResults] = useState(null);
         const [activeActor, setActiveActor] = useState('both'); // 'A', 'B', or 'both'
         const [casualtyData, setCasualtyData] = useState(null);
+        const [iterations, setIterations] = useState(1000);
+        const [isRunning, setIsRunning] = useState(false);
+        const [iterations, setIterations] = useState(1000);
+        const [isRunning, setIsRunning] = useState(false);
 
         useEffect(() => {
             if (importedProfile) {
@@ -432,19 +466,31 @@
         }, [importedProfile]);
 
         useEffect(() => {
-            runSimulation();
-        }, [actorA.behaviors, actorB.behaviors, activeActor, casualtyData]);
+            // Auto-run simulation on first load and when casualty data changes
+            if (simResults === null || casualtyData) {
+                runSimulation();
+            }
+        }, [casualtyData]);
+        
+        // Run simulation when activeActor view changes (just replot existing data)
+        useEffect(() => {
+            if (simResults) {
+                plotDistribution(simResults.actorA, simResults.actorB, simResults.combined, simResults.observedDeathProb);
+            }
+        }, [activeActor]);
 
-        const runSimulation = () => {
-            const iterations = 1000;
+        const runSimulation = async () => {
+            setIsRunning(true);
+            if (iterations > 5000) { await new Promise(resolve => setTimeout(resolve, 100)); }
             const resultsA = [];
             const resultsB = [];
             const resultsCombined = [];
             
             // Use casualty data to inform baseline probability if available
             let observedDeathProb = 0.5; // Default baseline
-            if (casualtyData && casualtyData.total > 0) {
+            if (casualtyData && casualtyData.average > 0) {
                 // Higher casualties → higher death probability
+                // Using consensus average from multiple sources reporting same incident
                 observedDeathProb = Math.min(0.95, casualtyData.average / 20);
             }
             
@@ -603,9 +649,11 @@
                 transitionMatrixB: matrixB,
                 steadyStateA: steadyStateA,
                 steadyStateB: steadyStateB,
-                observedDeathProb: observedDeathProb
+                observedDeathProb: observedDeathProb,
+                iterations: iterations
             });
             plotDistribution(resultsA, resultsB, resultsCombined, observedDeathProb);
+            setIsRunning(false);
         };
 
         const plotDistribution = (resultsA, resultsB, resultsCombined, observedProb) => {
@@ -687,16 +735,22 @@
                         <div className="bg-slate-900 p-6 rounded-xl border border-yellow-500/50">
                             <h2 className="text-yellow-400 font-bold mb-3">📊 OBSERVED DATA</h2>
                             <div className="space-y-2">
+                                {casualtyData.true !== null && (
+                                    <div className="flex justify-between text-xs bg-yellow-900/20 p-2 rounded">
+                                        <span className="text-yellow-300">Actual Casualties:</span>
+                                        <span className="text-yellow-400 font-bold">{casualtyData.true}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Total Casualties:</span>
-                                    <span className="text-white font-bold">{casualtyData.total}</span>
+                                    <span className="text-slate-400">Reported (Consensus):</span>
+                                    <span className="text-white font-bold">{casualtyData.average}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Average per Segment:</span>
-                                    <span className="text-yellow-400 font-bold">{casualtyData.average}</span>
+                                    <span className="text-slate-400">Range (Min-Max):</span>
+                                    <span className="text-slate-300 font-bold">{casualtyData.min} - {casualtyData.max}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Segments Analyzed:</span>
+                                    <span className="text-slate-400">Sources Reporting:</span>
                                     <span className="text-white font-bold">{casualtyData.segments}</span>
                                 </div>
                                 {simResults && simResults.observedDeathProb && (
@@ -710,6 +764,56 @@
                             </div>
                         </div>
                     )}
+
+                    {/* Monte Carlo Controls */}
+                    <div className="bg-slate-900 p-6 rounded-xl border border-emerald-500/50">
+                        <h2 className="text-emerald-400 font-bold mb-3">🎲 MONTE CARLO SIMULATION</h2>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs text-slate-400 block mb-2">
+                                    Number of Iterations: <span className="text-emerald-400 font-bold">{iterations.toLocaleString()}</span>
+                                </label>
+                                <input 
+                                    type="range"
+                                    value={iterations}
+                                    onChange={(e) => setIterations(parseInt(e.target.value))}
+                                    min="100"
+                                    max="10000"
+                                    step="100"
+                                    className="w-full"
+                                    disabled={isRunning}
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                    <span>100</span>
+                                    <span>1,000</span>
+                                    <span>10,000</span>
+                                </div>
+                                <input 
+                                    type="number" 
+                                    value={iterations}
+                                    onChange={(e) => setIterations(Math.max(100, Math.min(50000, parseInt(e.target.value) || 1000)))}
+                                    min="100"
+                                    max="50000"
+                                    step="100"
+                                    className="w-full bg-slate-800 border border-slate-700 px-2 py-1 rounded text-xs mt-2"
+                                    disabled={isRunning}
+                                    placeholder="Custom (max 50,000)"
+                                />
+                            </div>
+                            <button 
+                                onClick={runSimulation}
+                                disabled={isRunning}
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 p-2 rounded font-bold transition-all text-sm"
+                            >
+                                {isRunning ? 'RUNNING SIMULATION...' : 'RUN SIMULATION'}
+                            </button>
+                            {simResults && (
+                                <div className="text-[10px] text-center text-slate-400 pt-2 border-t border-slate-700">
+                                    Last run: {simResults.iterations.toLocaleString()} iterations
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Actor A Profile */}
                     <div className="bg-slate-900 p-6 rounded-xl border border-blue-500/50">
@@ -902,7 +1006,7 @@
                     )}
                     
                     <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                        Markov Chain simulation (1000 iterations × 10 time steps). Yellow dashed line shows baseline probability inferred from observed casualties.
+                        Markov Chain Monte Carlo simulation ({simResults ? simResults.iterations.toLocaleString() : '1000'} iterations × 10 time steps). Yellow dashed line shows baseline probability inferred from observed casualties.
                     </p>
                 </div>
             </div>
