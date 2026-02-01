@@ -63,16 +63,47 @@
         const [selectedActorProfile, setSelectedActorProfile] = useState(null);
 
         // Function to "Bridge" the two codes
-        const bridgeToSimulation = (actorName, scores) => {
+        const bridgeToSimulation = (actorName, scores, aggregatedData = null) => {
             setSelectedActorProfile({
                 name: actorName,
                 structural: scores.Structural > 0,
                 institutional: scores.Institutional > 0,
                 ideational: scores.Ideational > 0,
                 psychological: scores.Psychological > 0,
-                positional: Math.random() > 0.5 // Simulated detection
+                positional: Math.random() > 0.5, // Simulated detection
+                aggregatedScores: aggregatedData ? aggregatedData : scores,
+                isAggregated: aggregatedData !== null
             });
             setActiveTab('simulation');
+        };
+
+        // Function to aggregate all segments
+        const sendAllToSimulator = (segments) => {
+            if (segments.length === 0) return;
+
+            // Aggregate all causal logic scores
+            const aggregated = {
+                Structural: 0,
+                Institutional: 0,
+                Ideational: 0,
+                Psychological: 0
+            };
+
+            const actorSet = new Set();
+            const sourceSet = new Set();
+
+            segments.forEach(segment => {
+                Object.keys(aggregated).forEach(key => {
+                    aggregated[key] += segment.scores[key] || 0;
+                });
+                actorSet.add(segment.actor);
+                sourceSet.add(segment.source);
+            });
+
+            const actorList = Array.from(actorSet).join(', ');
+            const profileName = `Aggregated: ${actorList} (${segments.length} segments, ${sourceSet.size} sources)`;
+
+            bridgeToSimulation(profileName, aggregated, aggregated);
         };
 
         return (
@@ -91,7 +122,12 @@
 
                 <main className="flex-1 p-6">
                     {activeTab === 'research' ?
-                        <ResearchModule onActorExport={bridgeToSimulation} history={analysisHistory} setHistory={setAnalysisHistory} /> :
+                        <ResearchModule 
+                            onActorExport={bridgeToSimulation} 
+                            onSendAll={sendAllToSimulator}
+                            history={analysisHistory} 
+                            setHistory={setAnalysisHistory} 
+                        /> :
                         <SimulationModule importedProfile={selectedActorProfile} />
                     }
                 </main>
@@ -99,7 +135,7 @@
         );
     }
 
-    function ResearchModule({ onActorExport, history, setHistory }) {
+    function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
         const [incident, setIncident] = useState("Sanctuary city policy");
         const [actors, setActors] = useState("ICE, Mayor");
@@ -152,7 +188,7 @@
 
             const sources = [
                 "New York Times", "Washington Post", "Local News Network", 
-                "Associated Press", "Reuters", "City Tribune"
+                "Associated Press", "Reuters", "City Tribune", "BBC"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
@@ -253,6 +289,12 @@
                                     <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
                                         {history.length} segments
                                     </span>
+                                    <button 
+                                        onClick={() => onSendAll(history)}
+                                        className="text-[10px] bg-blue-900/30 text-blue-400 border border-blue-500/50 px-3 py-1 rounded hover:bg-blue-500 hover:text-white transition-all font-bold"
+                                    >
+                                        SEND ALL TO SIMULATOR →
+                                    </button>
                                     <button 
                                         onClick={() => setHistory([])}
                                         className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all"
@@ -369,7 +411,25 @@
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                         <h2 className="text-emerald-400 font-bold mb-4">ACTOR PROFILE</h2>
-                        {importedProfile && <div className="mb-4 p-2 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 text-xs rounded">DATA IMPORTED: {importedProfile.name}</div>}
+                        {importedProfile && (
+                            <div className="mb-4 space-y-2">
+                                <div className="p-2 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 text-xs rounded">
+                                    DATA IMPORTED: {importedProfile.name}
+                                </div>
+                                {importedProfile.isAggregated && importedProfile.aggregatedScores && (
+                                    <div className="p-3 bg-blue-900/20 border border-blue-500/50 rounded">
+                                        <div className="text-xs font-bold text-blue-400 mb-2">AGGREGATED SCORES:</div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {Object.entries(importedProfile.aggregatedScores).map(([key, value]) => (
+                                                <div key={key} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                                                    <span className="text-slate-400">{key}:</span> <span className="text-white font-bold">{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         <div className="space-y-2">
                             {Object.keys(behaviors).map(key => (
                                 <button
