@@ -1,1022 +1,192 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategic Analysis & Casualty Prediction Suite</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script crossorigin src="[https://unpkg.com/react@18/umd/react.production.min.js](https://unpkg.com/react@18/umd/react.production.min.js)"></script>
+    <script crossorigin src="[https://unpkg.com/react-dom@18/umd/react-dom.production.min.js](https://unpkg.com/react-dom@18/umd/react-dom.production.min.js)"></script>
+    <script src="[https://cdn.plot.ly/plotly-2.27.0.min.js](https://cdn.plot.ly/plotly-2.27.0.min.js)"></script>
+    <script src="[https://unpkg.com/@babel/standalone/babel.min.js](https://unpkg.com/@babel/standalone/babel.min.js)"></script>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <link href="[https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap](https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap)" rel="stylesheet">
 
-```
-<style>
-    body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; margin: 0; }
-    .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
-    .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
-    .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
-    .axiom-card.new-segment { 
-        animation: slideIn 0.4s ease-out, highlight 2s ease-out;
-        border-color: #3b82f6;
-    }
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateX(-20px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes highlight {
-        0% { background-color: #1e3a8a; }
-        100% { background-color: #0f172a; }
-    }
-    .custom-scroll::-webkit-scrollbar { width: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-</style>
-```
-
+    <style>
+        body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; margin: 0; }
+        .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
+        .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
+        .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
+        .axiom-card.new-segment { 
+            animation: slideIn 0.4s ease-out, highlight 2s ease-out;
+            border-color: #3b82f6;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes highlight {
+            0% { background-color: #1e3a8a; }
+            100% { background-color: #0f172a; }
+        }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
-```
-<script type="text/babel">
-    const { useState, useEffect, useMemo, createElement: h } = React;
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, createElement: h } = React;
 
-    // --- SHARED DATA ---
-    const CAUSAL_AXIOMS = {
-        Structural: { keywords: ["resource", "constraint", "budget", "funding", "material", "physical"] },
-        Institutional: { keywords: ["law", "policy", "regulation", "mandate", "court", "authority"] },
-        Ideational: { keywords: ["culture", "identity", "belief", "value", "tradition", "symbol"] },
-        Psychological: { keywords: ["fear", "anger", "emotion", "bias", "instinct", "trauma"] }
-    };
-
-    const PROBABILITY_MAP = {
-        'None': 0.05, 'Structural': 0.35, 'Ideational': 0.75, 'Institutional': 0.08,
-        'Psychological': 0.12, 'Pos': 0.88, 'Structural+Ideational': 0.55
-    };
-
-    // --- COMPONENTS ---
-    function App() {
-        const [activeTab, setActiveTab] = useState('research');
-        const [analysisHistory, setAnalysisHistory] = useState([]);
-        const [selectedActorProfile, setSelectedActorProfile] = useState(null);
-
-        // Function to "Bridge" the two codes
-        const bridgeToSimulation = (actorName, scores, aggregatedData = null, casualtyData = null) => {
-            setSelectedActorProfile({
-                name: actorName,
-                structural: scores.Structural > 0,
-                institutional: scores.Institutional > 0,
-                ideational: scores.Ideational > 0,
-                psychological: scores.Psychological > 0,
-                positional: Math.random() > 0.5, // Simulated detection
-                aggregatedScores: aggregatedData ? aggregatedData : scores,
-                isAggregated: aggregatedData !== null,
-                casualtyData: casualtyData
-            });
-            setActiveTab('simulation');
+        // --- SHARED DATA ---
+        const CAUSAL_AXIOMS = {
+            Structural: { keywords: ["resource", "constraint", "budget", "funding", "material", "physical"] },
+            Institutional: { keywords: ["law", "policy", "regulation", "mandate", "court", "authority"] },
+            Ideational: { keywords: ["culture", "identity", "belief", "value", "tradition", "symbol"] },
+            Psychological: { keywords: ["fear", "anger", "emotion", "bias", "instinct", "trauma"] }
         };
 
-        // Function to aggregate all segments
-        const sendAllToSimulator = (segments) => {
-            if (segments.length === 0) return;
+        // --- COMPONENTS ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('research');
+            const [analysisHistory, setAnalysisHistory] = useState([]);
+            const [selectedActorProfile, setSelectedActorProfile] = useState(null);
 
-            // Aggregate all causal logic scores
-            const aggregated = {
-                Structural: 0,
-                Institutional: 0,
-                Ideational: 0,
-                Psychological: 0
+            const bridgeToSimulation = (actorName, scores, aggregatedData = null, casualtyData = null) => {
+                setSelectedActorProfile({
+                    name: actorName,
+                    structural: scores.Structural > 0,
+                    institutional: scores.Institutional > 0,
+                    ideational: scores.Ideational > 0,
+                    psychological: scores.Psychological > 0,
+                    positional: Math.random() > 0.5,
+                    aggregatedScores: aggregatedData ? aggregatedData : scores,
+                    isAggregated: aggregatedData !== null,
+                    casualtyData: casualtyData
+                });
+                setActiveTab('simulation');
             };
 
-            const actorSet = new Set();
-            const sourceSet = new Set();
-            const casualtyReports = [];
-            let trueCasualtyCount = null;
+            const sendAllToSimulator = (segments) => {
+                if (segments.length === 0) return;
+                const aggregated = { Structural: 0, Institutional: 0, Ideational: 0, Psychological: 0 };
+                const actorSet = new Set();
+                const sourceSet = new Set();
+                const casualtyReports = [];
+                let trueCasualtyCount = null;
 
-            segments.forEach(segment => {
-                Object.keys(aggregated).forEach(key => {
-                    aggregated[key] += segment.scores[key] || 0;
+                segments.forEach(segment => {
+                    Object.keys(aggregated).forEach(key => { aggregated[key] += segment.scores[key] || 0; });
+                    actorSet.add(segment.actor);
+                    sourceSet.add(segment.source);
+                    if (segment.casualties !== undefined) casualtyReports.push(segment.casualties);
+                    if (segment.trueCasualties !== undefined && trueCasualtyCount === null) trueCasualtyCount = segment.trueCasualties;
                 });
-                actorSet.add(segment.actor);
-                sourceSet.add(segment.source);
-                if (segment.casualties !== undefined) {
-                    casualtyReports.push(segment.casualties);
-                }
-                // Get true casualty count (should be same for all segments)
-                if (segment.trueCasualties !== undefined && trueCasualtyCount === null) {
-                    trueCasualtyCount = segment.trueCasualties;
-                }
-            });
 
-            const actorList = Array.from(actorSet).join(', ');
-            const profileName = `Aggregated: ${actorList} (${segments.length} segments, ${sourceSet.size} sources)`;
+                const casualtyData = {
+                    average: parseFloat((casualtyReports.reduce((a, b) => a + b, 0) / casualtyReports.length).toFixed(1)),
+                    min: Math.min(...casualtyReports),
+                    max: Math.max(...casualtyReports),
+                    true: trueCasualtyCount,
+                    segments: segments.length
+                };
 
-            // Calculate casualty statistics (different sources reporting same incident)
-            const avgCasualties = casualtyReports.length > 0 ? 
-                casualtyReports.reduce((a, b) => a + b, 0) / casualtyReports.length : 0;
-            const minCasualties = casualtyReports.length > 0 ? Math.min(...casualtyReports) : 0;
-            const maxCasualties = casualtyReports.length > 0 ? Math.max(...casualtyReports) : 0;
-
-            const casualtyData = {
-                average: parseFloat(avgCasualties.toFixed(1)), // Average of all reports (consensus)
-                min: minCasualties,
-                max: maxCasualties,
-                true: trueCasualtyCount, // The actual casualty count
-                segments: segments.length,
-                reports: casualtyReports,
-                perSource: segments.map(s => ({ source: s.source, casualties: s.casualties }))
+                bridgeToSimulation(`Aggregated Analysis`, aggregated, aggregated, casualtyData);
             };
 
-            bridgeToSimulation(profileName, aggregated, aggregated, casualtyData);
-        };
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
+                        <div>
+                            <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
+                            <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Prediction</p>
+                        </div>
+                        <nav className="flex gap-6">
+                            <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
+                            <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. DEATH PROBABILITY</button>
+                        </nav>
+                    </header>
+                    <main className="flex-1 p-6">
+                        {activeTab === 'research' ? 
+                            <ResearchModule onActorExport={bridgeToSimulation} onSendAll={sendAllToSimulator} history={analysisHistory} setHistory={setAnalysisHistory} /> : 
+                            <SimulationModule importedProfile={selectedActorProfile} />
+                        }
+                    </main>
+                </div>
+            );
+        }
 
-        return (
-            <div className="min-h-screen flex flex-col">
-                {/* Header */}
-                <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
-                        <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Death Probability Prediction</p>
-                    </div>
-                    <nav className="flex gap-6">
-                        <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
-                        <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. DEATH PROBABILITY</button>
-                    </nav>
-                </header>
+        function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
+            const [loading, setLoading] = useState(false);
+            const [incident, setIncident] = useState("Iran protests");
+            const [actors, setActors] = useState("Government, protestors");
+            const [progress, setProgress] = useState("");
 
-                <main className="flex-1 p-6">
-                    {activeTab === 'research' ?
-                        <ResearchModule 
-                            onActorExport={bridgeToSimulation} 
-                            onSendAll={sendAllToSimulator}
-                            history={analysisHistory} 
-                            setHistory={setAnalysisHistory} 
-                        /> :
-                        <SimulationModule importedProfile={selectedActorProfile} />
-                    }
-                </main>
-            </div>
-        );
-    }
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setHistory(prev => prev.map(item => ({ ...item, isNew: false })));
+                }, 2000);
+                return () => clearTimeout(timer);
+            }, [history]);
 
-    function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
-        const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Sanctuary city policy");
-        const [actors, setActors] = useState("ICE, Mayor");
-        const [progress, setProgress] = useState("");
-
-        // Clear "isNew" flag after animation completes
-        useEffect(() => {
-            const timer = setTimeout(() => {
-                setHistory(prev => prev.map(item => ({ ...item, isNew: false })));
-            }, 2000);
-            return () => clearTimeout(timer);
-        }, [history]);
-
-        const generateMockSegments = (incidentText, actorList) => {
-            const actorArray = actorList.split(',').map(a => a.trim());
-            
-            // Generate ONE true casualty count for this incident that all sources will report (with variance)
-            const trueCasualties = Math.floor(Math.random() * 20) + 1; // 1-20 casualties for the incident
-            
-            const templates = [
-                {
-                    text: "The institutional framework requires compliance with federal regulations and legal mandates...",
-                    scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 },
-                    baseVariance: 0.1 // Low variance for institutional reports (more accurate)
-                },
-                {
-                    text: "Resource constraints and budget limitations prevent full implementation of the policy...",
-                    scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 },
-                    baseVariance: 0.15
-                },
-                {
-                    text: "Community identity and cultural values drive strong resistance to the proposed changes...",
-                    scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 },
-                    baseVariance: 0.25 // Higher variance for ideational (less accurate reporting)
-                },
-                {
-                    text: "Fear and uncertainty among residents have escalated tensions in the community...",
-                    scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 },
-                    baseVariance: 0.2
-                },
-                {
-                    text: "Court rulings and regulatory authority shape the boundaries of permissible action...",
-                    scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 },
-                    baseVariance: 0.1
-                },
-                {
-                    text: "Traditional beliefs and symbolic meanings inform the stakeholder response patterns...",
-                    scores: { Structural: 0, Institutional: 1, Ideational: 4, Psychological: 1 },
-                    baseVariance: 0.2
-                },
-                {
-                    text: "Physical infrastructure and material resources determine operational capacity...",
-                    scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 },
-                    baseVariance: 0.15
-                },
-                {
-                    text: "Emotional reactions and cognitive biases influence decision-making processes...",
-                    scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 },
-                    baseVariance: 0.2
+            const handleSearch = async () => {
+                setLoading(true);
+                const actorArray = actors.split(',').map(a => a.trim());
+                const trueCas = Math.floor(Math.random() * 20) + 1;
+                
+                for (let i = 0; i < 5; i++) {
+                    setProgress(`Analyzing Source ${i+1}...`);
+                    await new Promise(r => setTimeout(r, 600));
+                    const newSegment = {
+                        id: Date.now() + i,
+                        timestamp: new Date().toLocaleTimeString(),
+                        actor: actorArray[i % actorArray.length],
+                        source: ["Reuters", "AP", "NYT", "Washington Post"][i % 4],
+                        text: "Strategic framework analysis regarding " + incident,
+                        scores: { Structural: 2, Institutional: 1, Ideational: 0, Psychological: 0 },
+                        casualties: Math.max(0, trueCas + Math.floor(Math.random() * 5 - 2)),
+                        trueCasualties: trueCas,
+                        isNew: true
+                    };
+                    setHistory(prev => [newSegment, ...prev]);
                 }
-            ];
+                setLoading(false);
+                setProgress("");
+            };
 
-            const sources = [
-                "New York Times", "Washington Post", "Local News Network", 
-                "Associated Press", "Reuters", "City Tribune"
-            ];
-
-            const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
-            const segments = [];
-            const now = new Date();
-
-            for (let i = 0; i < numSegments; i++) {
-                const template = templates[i % templates.length];
-                const actor = actorArray[Math.floor(Math.random() * actorArray.length)];
-                const source = sources[Math.floor(Math.random() * sources.length)];
-                
-                // Generate sequential timestamps
-                const segmentTime = new Date(now.getTime() + (i * 1000));
-                const timeStr = segmentTime.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit' 
-                });
-                
-                // Each source reports the same incident with slight variance
-                const variance = template.baseVariance || 0.15;
-                const reportedCasualties = Math.max(0, Math.round(trueCasualties * (1 + (Math.random() - 0.5) * 2 * variance)));
-                
-                segments.push({
-                    id: Date.now() + i,
-                    timestamp: timeStr,
-                    actor: actor,
-                    source: source,
-                    text: template.text,
-                    scores: template.scores,
-                    casualties: reportedCasualties,
-                    trueCasualties: trueCasualties, // Store the true count for reference
-                    isNew: true
-                });
-            }
-
-            return segments;
-        };
-
-        const handleSearch = async () => {
-            setLoading(true);
-            setProgress("Initializing search pipeline...");
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const segments = generateMockSegments(incident, actors);
-            
-            // Process each segment sequentially
-            for (let i = 0; i < segments.length; i++) {
-                const segment = segments[i];
-                
-                setProgress(`Processing ${segment.source} (${i + 1}/${segments.length})...`);
-                await new Promise(resolve => setTimeout(resolve, 400));
-                
-                setProgress(`Extracting segment from ${segment.source}...`);
-                await new Promise(resolve => setTimeout(resolve, 300));
-                
-                setProgress(`Running NLP classification on ${segment.source}...`);
-                await new Promise(resolve => setTimeout(resolve, 400));
-                
-                // Add this segment to history
-                setHistory(prev => [segment, ...prev]);
-                
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-            
-            setProgress("Analysis complete!");
-            await new Promise(resolve => setTimeout(resolve, 800));
-            
-            setProgress("");
-            setLoading(false);
-        };
-
-        return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                    <h2 className="text-emerald-400 font-bold mb-4 flex items-center gap-2"><span>🔍</span> INCIDENT PARAMETERS</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs text-slate-500 block mb-1">INCIDENT DESCRIPTION</label>
-                            <input value={incident} onChange={e => setIncident(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                        <h2 className="text-emerald-400 font-bold mb-4">🔍 INCIDENT PARAMETERS</h2>
+                        <div className="space-y-4">
+                            <input value={incident} onChange={e => setIncident(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm" placeholder="Incident..."/>
+                            <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm" placeholder="Actors..."/>
+                            <button onClick={handleSearch} className="w-full bg-emerald-600 p-3 rounded font-bold">{loading ? "PROCESSING..." : "START RESEARCH"}</button>
+                            {progress && <div className="text-blue-400 text-xs animate-pulse">{progress}</div>}
                         </div>
-                        <div>
-                            <label className="text-xs text-slate-500 block mb-1">KEY ACTORS (comma separated)</label>
-                            <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
+                    </section>
+                    <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                        <div className="flex justify-between mb-4">
+                            <h2 className="text-emerald-400 font-bold">📈 ANALYZED SEGMENTS</h2>
+                            <button onClick={() => onSendAll(history)} className="text-xs text-blue-400">SEND ALL TO SIMULATOR</button>
                         </div>
-                        <button onClick={handleSearch} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                            {loading ? "PROCESSING NLP..." : "START AUTOMATED RESEARCH"}
-                        </button>
-                        {progress && (
-                            <div className="bg-blue-900/20 border border-blue-500/50 text-blue-400 text-xs p-3 rounded flex items-center gap-2">
-                                <span className="animate-pulse">●</span> {progress}
-                            </div>
-                        )}
-                    </div>
-                </section>
-
-                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-emerald-400 font-bold">📈 LATEST ANALYZED SEGMENTS</h2>
-                        <div className="flex gap-2 items-center">
-                            {history.length > 0 && (
-                                <>
-                                    <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
-                                        {history.length} segments
-                                    </span>
-                                    <button 
-                                        onClick={() => onSendAll(history)}
-                                        className="text-[10px] bg-blue-900/30 text-blue-400 border border-blue-500/50 px-3 py-1 rounded hover:bg-blue-500 hover:text-white transition-all font-bold"
-                                    >
-                                        SEND ALL TO SIMULATOR →
-                                    </button>
-                                    <button 
-                                        onClick={() => setHistory([])}
-                                        className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all"
-                                    >
-                                        CLEAR
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                    {history.length > 0 && (
-                        <div className="text-[10px] text-cyan-300 bg-cyan-900/10 border border-cyan-500/20 p-2 rounded mb-3">
-                            ℹ️ Multiple sources reporting same incident. Casualty counts show variation across sources, not separate incidents.
-                        </div>
-                    )}
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
-                        {history.length === 0 ? (
-                            <p className="text-sm text-slate-500 italic text-center py-8">No segments analyzed yet. Start automated research to begin.</p>
-                        ) : (
-                            history.map(item => (
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
+                            {history.map(item => (
                                 <div key={item.id} className={`axiom-card p-4 rounded-lg ${item.isNew ? 'new-segment' : ''}`}>
-                                    <div className="flex justify-between mb-2">
-                                        <div>
-                                            <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
-                                            {item.source && <span className="text-[10px] text-slate-500 ml-2">via {item.source}</span>}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {item.casualties !== undefined && (
-                                                <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded font-bold" title={`Reported: ${item.casualties}${item.trueCasualties ? ' | Actual: ' + item.trueCasualties : ''}`}>
-                                                    {item.casualties} reported
-                                                </span>
-                                            )}
-                                            <span className="text-[10px] text-slate-500">{item.timestamp}</span>
-                                        </div>
+                                    <div className="flex justify-between text-xs mb-2">
+                                        <span className="text-blue-400 font-bold">{item.actor}</span>
+                                        <span className="text-slate-500">{item.timestamp}</span>
                                     </div>
-                                    <p className="text-xs italic text-slate-300 mb-3">"{item.text}"</p>
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex gap-2 flex-wrap">
-                                            {Object.entries(item.scores).map(([k, v]) => v > 0 && (
-                                                <span key={k} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">
-                                                    {k}: {v}
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <button onClick={() => onActorExport(item.actor, item.scores)} className="text-[10px] bg-emerald-900/50 text-emerald-400 border border-emerald-500/50 px-2 py-1 rounded hover:bg-emerald-500 hover:text-white transition-all whitespace-nowrap ml-2">
-                                            SEND TO SIMULATOR →
-                                        </button>
-                                    </div>
+                                    <p className="text-xs italic text-slate-300 mb-2">"{item.text}"</p>
+                                    <button onClick={() => onActorExport(item.actor, item.scores)} className="text-[10px] bg-emerald-900/50 text-emerald-400 p-1 rounded">SIMULATE actor</button>
                                 </div>
-                            ))
-                        )}
-                    </div>
-                </section>
-            </div>
-        );
-    }
-
-    function SimulationModule({ importedProfile }) {
-        const [actorA, setActorA] = useState({
-            name: 'Actor A',
-            behaviors: { structural: true, ideational: false, institutional: false, psychological: false, positional: false }
-        });
-        const [actorB, setActorB] = useState({
-            name: 'Actor B',
-            behaviors: { structural: false, ideational: true, institutional: false, psychological: false, positional: false }
-        });
-        const [simResults, setSimResults] = useState(null);
-        const [activeActor, setActiveActor] = useState('both'); // 'A', 'B', or 'both'
-        const [casualtyData, setCasualtyData] = useState(null);
-        const [iterations, setIterations] = useState(1000);
-        const [isRunning, setIsRunning] = useState(false);
-        const [iterations, setIterations] = useState(1000);
-        const [isRunning, setIsRunning] = useState(false);
-
-        useEffect(() => {
-            if (importedProfile) {
-                // Set casualty data if available
-                if (importedProfile.casualtyData) {
-                    setCasualtyData(importedProfile.casualtyData);
-                }
-
-                // Check if this is an aggregated profile with multiple actors
-                if (importedProfile.isAggregated && importedProfile.name.includes(',')) {
-                    // Try to split actors
-                    const actorNames = importedProfile.name.split(':')[1]?.split('(')[0]?.split(',').map(a => a.trim()) || [];
-                    if (actorNames.length >= 2) {
-                        setActorA(prev => ({
-                            ...prev,
-                            name: actorNames[0],
-                            behaviors: {
-                                structural: importedProfile.structural,
-                                ideational: importedProfile.ideational,
-                                institutional: importedProfile.institutional,
-                                psychological: importedProfile.psychological,
-                                positional: importedProfile.positional
-                            }
-                        }));
-                        setActorB(prev => ({
-                            ...prev,
-                            name: actorNames[1],
-                            behaviors: {
-                                structural: importedProfile.structural,
-                                ideational: importedProfile.ideational,
-                                institutional: importedProfile.institutional,
-                                psychological: importedProfile.psychological,
-                                positional: importedProfile.positional
-                            }
-                        }));
-                    }
-                } else {
-                    // Single actor import
-                    setActorA(prev => ({
-                        ...prev,
-                        name: importedProfile.name,
-                        behaviors: {
-                            structural: importedProfile.structural,
-                            ideational: importedProfile.ideational,
-                            institutional: importedProfile.institutional,
-                            psychological: importedProfile.psychological,
-                            positional: importedProfile.positional
-                        }
-                    }));
-                }
-            }
-        }, [importedProfile]);
-
-        useEffect(() => {
-            // Auto-run simulation on first load and when casualty data changes
-            if (simResults === null || casualtyData) {
-                runSimulation();
-            }
-        }, [casualtyData]);
-        
-        // Run simulation when activeActor view changes (just replot existing data)
-        useEffect(() => {
-            if (simResults) {
-                plotDistribution(simResults.actorA, simResults.actorB, simResults.combined, simResults.observedDeathProb);
-            }
-        }, [activeActor]);
-
-        const runSimulation = async () => {
-            setIsRunning(true);
-            if (iterations > 5000) { await new Promise(resolve => setTimeout(resolve, 100)); }
-            const resultsA = [];
-            const resultsB = [];
-            const resultsCombined = [];
-            
-            // Use casualty data to inform baseline probability if available
-            let observedDeathProb = 0.5; // Default baseline
-            if (casualtyData && casualtyData.average > 0) {
-                // Higher casualties → higher death probability
-                // Using consensus average from multiple sources reporting same incident
-                observedDeathProb = Math.min(0.95, casualtyData.average / 20);
-            }
-            
-            // Define Markov Chain States based on death probability levels
-            const states = {
-                LOW: { name: 'Low', range: [0.0, 0.3], index: 0 },
-                MEDIUM: { name: 'Medium', range: [0.3, 0.7], index: 1 },
-                HIGH: { name: 'High', range: [0.7, 1.0], index: 2 }
-            };
-
-            // Build transition matrix based on actor behaviors
-            const buildTransitionMatrix = (behaviors) => {
-                // Base transition probabilities (neutral state)
-                let matrix = [
-                    [0.70, 0.25, 0.05],  // From LOW to [LOW, MED, HIGH]
-                    [0.40, 0.45, 0.15],  // From MEDIUM to [LOW, MED, HIGH]
-                    [0.20, 0.50, 0.30]   // From HIGH to [LOW, MED, HIGH]
-                ];
-
-                // Adjust based on behaviors
-                if (behaviors.ideational) {
-                    // Ideational increases high-probability transitions
-                    matrix[0][2] += 0.15; // LOW -> HIGH
-                    matrix[1][2] += 0.20; // MED -> HIGH
-                    matrix[2][2] += 0.15; // HIGH -> HIGH (persistence)
-                    matrix[0][0] -= 0.15;
-                    matrix[1][1] -= 0.15;
-                    matrix[2][1] -= 0.15;
-                }
-
-                if (behaviors.psychological) {
-                    // Psychological increases medium-to-high transitions
-                    matrix[1][2] += 0.12;
-                    matrix[0][1] += 0.10;
-                    matrix[1][1] -= 0.12;
-                    matrix[0][0] -= 0.10;
-                }
-
-                if (behaviors.structural) {
-                    // Structural moderately increases all transitions
-                    matrix[0][1] += 0.08;
-                    matrix[1][2] += 0.08;
-                    matrix[0][0] -= 0.08;
-                    matrix[1][1] -= 0.08;
-                }
-
-                if (behaviors.institutional) {
-                    // Institutional decreases escalation
-                    matrix[0][0] += 0.10;
-                    matrix[1][0] += 0.10;
-                    matrix[2][0] += 0.15;
-                    matrix[0][1] -= 0.05;
-                    matrix[1][2] -= 0.10;
-                    matrix[2][2] -= 0.15;
-                }
-
-                if (behaviors.positional) {
-                    // Positional dramatically increases high probability states
-                    matrix[0][2] += 0.25;
-                    matrix[1][2] += 0.25;
-                    matrix[2][2] += 0.20;
-                    matrix[0][0] -= 0.15;
-                    matrix[0][1] -= 0.10;
-                    matrix[1][1] -= 0.20;
-                    matrix[2][1] -= 0.20;
-                }
-
-                // Normalize rows to sum to 1.0
-                matrix = matrix.map(row => {
-                    const sum = row.reduce((a, b) => a + b, 0);
-                    return row.map(val => val / sum);
-                });
-
-                return matrix;
-            };
-
-            // Run Markov Chain simulation
-            const runMarkovChain = (transitionMatrix, steps) => {
-                const trajectory = [];
-                let currentState = 0; // Start in LOW state
-                
-                for (let i = 0; i < steps; i++) {
-                    trajectory.push(currentState);
-                    
-                    // Transition to next state based on probabilities
-                    const rand = Math.random();
-                    const probs = transitionMatrix[currentState];
-                    let cumProb = 0;
-                    
-                    for (let nextState = 0; nextState < 3; nextState++) {
-                        cumProb += probs[nextState];
-                        if (rand < cumProb) {
-                            currentState = nextState;
-                            break;
-                        }
-                    }
-                }
-                
-                return trajectory;
-            };
-
-            // Convert state to death probability
-            const stateToProbability = (state) => {
-                const stateKeys = ['LOW', 'MEDIUM', 'HIGH'];
-                const stateObj = states[stateKeys[state]];
-                const [min, max] = stateObj.range;
-                return min + Math.random() * (max - min);
-            };
-
-            const matrixA = buildTransitionMatrix(actorA.behaviors);
-            const matrixB = buildTransitionMatrix(actorB.behaviors);
-            
-            // Calculate steady-state probabilities (eigenvector method approximation)
-            const calculateSteadyState = (matrix) => {
-                // Power method: multiply state vector by matrix many times
-                let state = [1/3, 1/3, 1/3]; // Start uniform
-                for (let i = 0; i < 100; i++) {
-                    const newState = [0, 0, 0];
-                    for (let j = 0; j < 3; j++) {
-                        for (let k = 0; k < 3; k++) {
-                            newState[j] += state[k] * matrix[k][j];
-                        }
-                    }
-                    state = newState;
-                }
-                return state;
-            };
-
-            const steadyStateA = calculateSteadyState(matrixA);
-            const steadyStateB = calculateSteadyState(matrixB);
-            
-            for (let i = 0; i < iterations; i++) {
-                // Run Markov chains for both actors
-                const trajectoryA = runMarkovChain(matrixA, 10); // 10 time steps
-                const trajectoryB = runMarkovChain(matrixB, 10);
-                
-                // Get final state probabilities
-                const finalStateA = trajectoryA[trajectoryA.length - 1];
-                const finalStateB = trajectoryB[trajectoryB.length - 1];
-                
-                const probA = stateToProbability(finalStateA);
-                const probB = stateToProbability(finalStateB);
-                
-                resultsA.push(probA);
-                resultsB.push(probB);
-                
-                // Combined uses maximum of both (highest risk)
-                resultsCombined.push(Math.max(probA, probB));
-            }
-            
-            setSimResults({ 
-                actorA: resultsA, 
-                actorB: resultsB, 
-                combined: resultsCombined,
-                transitionMatrixA: matrixA,
-                transitionMatrixB: matrixB,
-                steadyStateA: steadyStateA,
-                steadyStateB: steadyStateB,
-                observedDeathProb: observedDeathProb,
-                iterations: iterations
-            });
-            plotDistribution(resultsA, resultsB, resultsCombined, observedDeathProb);
-            setIsRunning(false);
-        };
-
-        const plotDistribution = (resultsA, resultsB, resultsCombined, observedProb) => {
-            const traces = [];
-
-            if (activeActor === 'A' || activeActor === 'both') {
-                traces.push({
-                    x: resultsA,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: actorA.name,
-                    marker: { color: '#3b82f6', opacity: 0.6 },
-                    visible: activeActor === 'both' ? true : true
-                });
-            }
-
-            if (activeActor === 'B' || activeActor === 'both') {
-                traces.push({
-                    x: resultsB,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: actorB.name,
-                    marker: { color: '#ef4444', opacity: 0.6 },
-                    visible: activeActor === 'both' ? true : true
-                });
-            }
-
-            if (activeActor === 'both') {
-                traces.push({
-                    x: resultsCombined,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: 'Combined (Max)',
-                    marker: { color: '#10b981', opacity: 0.7 },
-                    visible: true
-                });
-            }
-
-            // Add observed probability line if available
-            if (casualtyData && observedProb) {
-                traces.push({
-                    x: [observedProb, observedProb],
-                    y: [0, 100],
-                    type: 'scatter',
-                    mode: 'lines',
-                    name: 'Inferred from Data',
-                    line: { color: '#fbbf24', width: 3, dash: 'dash' }
-                });
-            }
-
-            const layout = {
-                title: { text: 'Death Probability Distribution', font: { color: '#f8fafc' } },
-                xaxis: { 
-                    title: 'Probability of Death (0-1)', 
-                    color: '#94a3b8', 
-                    range: [0, 1]
-                },
-                yaxis: { title: 'Frequency', color: '#94a3b8' },
-                plot_bgcolor: '#0f172a',
-                paper_bgcolor: '#0f172a',
-                font: { color: '#f8fafc' },
-                barmode: 'overlay',
-                showlegend: true,
-                legend: { x: 0.65, y: 0.95, bgcolor: '#1e293b', bordercolor: '#334155', borderwidth: 1 }
-            };
-
-            Plotly.newPlot('chart', traces, layout, { responsive: true });
-        };
-
-        const avgProbA = simResults ? (simResults.actorA.reduce((a, b) => a + b, 0) / simResults.actorA.length).toFixed(3) : '---';
-        const avgProbB = simResults ? (simResults.actorB.reduce((a, b) => a + b, 0) / simResults.actorB.length).toFixed(3) : '---';
-        const avgProbCombined = simResults ? (simResults.combined.reduce((a, b) => a + b, 0) / simResults.combined.length).toFixed(3) : '---';
-
-        return (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1 space-y-6">
-                    {/* Observed Casualties Panel */}
-                    {casualtyData && (
-                        <div className="bg-slate-900 p-6 rounded-xl border border-yellow-500/50">
-                            <h2 className="text-yellow-400 font-bold mb-3">📊 OBSERVED DATA</h2>
-                            <div className="space-y-2">
-                                {casualtyData.true !== null && (
-                                    <div className="flex justify-between text-xs bg-yellow-900/20 p-2 rounded">
-                                        <span className="text-yellow-300">Actual Casualties:</span>
-                                        <span className="text-yellow-400 font-bold">{casualtyData.true}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Reported (Consensus):</span>
-                                    <span className="text-white font-bold">{casualtyData.average}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Range (Min-Max):</span>
-                                    <span className="text-slate-300 font-bold">{casualtyData.min} - {casualtyData.max}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-400">Sources Reporting:</span>
-                                    <span className="text-white font-bold">{casualtyData.segments}</span>
-                                </div>
-                                {simResults && simResults.observedDeathProb && (
-                                    <div className="pt-2 mt-2 border-t border-yellow-500/30">
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-slate-400">Inferred Death Prob:</span>
-                                            <span className="text-yellow-300 font-bold">{simResults.observedDeathProb.toFixed(3)}</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Monte Carlo Controls */}
-                    <div className="bg-slate-900 p-6 rounded-xl border border-emerald-500/50">
-                        <h2 className="text-emerald-400 font-bold mb-3">🎲 MONTE CARLO SIMULATION</h2>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-xs text-slate-400 block mb-2">
-                                    Number of Iterations: <span className="text-emerald-400 font-bold">{iterations.toLocaleString()}</span>
-                                </label>
-                                <input 
-                                    type="range"
-                                    value={iterations}
-                                    onChange={(e) => setIterations(parseInt(e.target.value))}
-                                    min="100"
-                                    max="10000"
-                                    step="100"
-                                    className="w-full"
-                                    disabled={isRunning}
-                                />
-                                <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                                    <span>100</span>
-                                    <span>1,000</span>
-                                    <span>10,000</span>
-                                </div>
-                                <input 
-                                    type="number" 
-                                    value={iterations}
-                                    onChange={(e) => setIterations(Math.max(100, Math.min(50000, parseInt(e.target.value) || 1000)))}
-                                    min="100"
-                                    max="50000"
-                                    step="100"
-                                    className="w-full bg-slate-800 border border-slate-700 px-2 py-1 rounded text-xs mt-2"
-                                    disabled={isRunning}
-                                    placeholder="Custom (max 50,000)"
-                                />
-                            </div>
-                            <button 
-                                onClick={runSimulation}
-                                disabled={isRunning}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 p-2 rounded font-bold transition-all text-sm"
-                            >
-                                {isRunning ? 'RUNNING SIMULATION...' : 'RUN SIMULATION'}
-                            </button>
-                            {simResults && (
-                                <div className="text-[10px] text-center text-slate-400 pt-2 border-t border-slate-700">
-                                    Last run: {simResults.iterations.toLocaleString()} iterations
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Actor A Profile */}
-                    <div className="bg-slate-900 p-6 rounded-xl border border-blue-500/50">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-blue-400 font-bold">ACTOR A</h2>
-                            <input 
-                                value={actorA.name} 
-                                onChange={(e) => setActorA({...actorA, name: e.target.value})}
-                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            {Object.keys(actorA.behaviors).map(key => (
-                                <button
-                                    key={key}
-                                    onClick={() => setActorA({
-                                        ...actorA, 
-                                        behaviors: {...actorA.behaviors, [key]: !actorA.behaviors[key]}
-                                    })}
-                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorA.behaviors[key] ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                >
-                                    {key.toUpperCase()} {actorA.behaviors[key] ? '✓' : '✗'}
-                                </button>
                             ))}
                         </div>
-                    </div>
-
-                    {/* Actor B Profile */}
-                    <div className="bg-slate-900 p-6 rounded-xl border border-red-500/50">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-red-400 font-bold">ACTOR B</h2>
-                            <input 
-                                value={actorB.name} 
-                                onChange={(e) => setActorB({...actorB, name: e.target.value})}
-                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            {Object.keys(actorB.behaviors).map(key => (
-                                <button
-                                    key={key}
-                                    onClick={() => setActorB({
-                                        ...actorB, 
-                                        behaviors: {...actorB.behaviors, [key]: !actorB.behaviors[key]}
-                                    })}
-                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorB.behaviors[key] ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                >
-                                    {key.toUpperCase()} {actorB.behaviors[key] ? '✓' : '✗'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Results */}
-                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-4">DEATH PROBABILITY</h2>
-                        <div className="space-y-3">
-                            <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
-                                <div className="text-2xl font-bold text-blue-400">{avgProbA}</div>
-                                <div className="text-[10px] text-slate-400">Actor A Avg</div>
-                            </div>
-                            <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
-                                <div className="text-2xl font-bold text-red-400">{avgProbB}</div>
-                                <div className="text-[10px] text-slate-400">Actor B Avg</div>
-                            </div>
-                            <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
-                                <div className="text-2xl font-bold text-emerald-400">{avgProbCombined}</div>
-                                <div className="text-[10px] text-slate-400">Combined Max</div>
-                            </div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
+            );
+        }
 
-                <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-emerald-400 font-bold">DEATH PROBABILITY PREDICTION</h2>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setActiveActor('A')}
-                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'A' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                            >
-                                A Only
-                            </button>
-                            <button 
-                                onClick={() => setActiveActor('B')}
-                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'B' ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                            >
-                                B Only
-                            </button>
-                            <button 
-                                onClick={() => setActiveActor('both')}
-                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'both' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                            >
-                                Both
-                            </button>
-                        </div>
-                    </div>
-                    <div id="chart" className="w-full h-[400px]"></div>
-                    
-                    {/* Markov Chain Transition Matrices */}
-                    {simResults && simResults.transitionMatrixA && (
-                        <div className="mt-6">
-                            <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
-                                <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 MARKOV CHAIN MODEL</h3>
-                                <p className="text-[10px] text-cyan-200">
-                                    Transition matrices show the probability of moving between death probability states (Low: 0-0.3, Medium: 0.3-0.7, High: 0.7-1.0) over time. 
-                                    Each row represents the current state, columns show next-state probabilities. Actor behaviors modify these transition probabilities.
-                                    Steady-state shows long-term equilibrium distribution.
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="bg-slate-800/50 p-4 rounded border border-blue-500/30">
-                                    <h3 className="text-xs font-bold text-blue-400 mb-2">ACTOR A TRANSITION MATRIX</h3>
-                                    <div className="text-[9px] font-mono">
-                                        <div className="flex gap-1 mb-1 text-slate-500">
-                                            <span className="w-12"></span>
-                                            <span className="w-16 text-center">→Low</span>
-                                            <span className="w-16 text-center">→Med</span>
-                                            <span className="w-16 text-center">→High</span>
-                                        </div>
-                                        {simResults.transitionMatrixA.map((row, i) => (
-                                            <div key={i} className="flex gap-1 mb-1">
-                                                <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
-                                                {row.map((val, j) => (
-                                                    <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-blue-400 font-bold' : val > 0.2 ? 'text-blue-300' : 'text-slate-500'}`}>
-                                                        {val.toFixed(2)}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="bg-slate-800/50 p-4 rounded border border-red-500/30">
-                                    <h3 className="text-xs font-bold text-red-400 mb-2">ACTOR B TRANSITION MATRIX</h3>
-                                    <div className="text-[9px] font-mono">
-                                        <div className="flex gap-1 mb-1 text-slate-500">
-                                            <span className="w-12"></span>
-                                            <span className="w-16 text-center">→Low</span>
-                                            <span className="w-16 text-center">→Med</span>
-                                            <span className="w-16 text-center">→High</span>
-                                        </div>
-                                        {simResults.transitionMatrixB.map((row, i) => (
-                                            <div key={i} className="flex gap-1 mb-1">
-                                                <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
-                                                {row.map((val, j) => (
-                                                    <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-red-400 font-bold' : val > 0.2 ? 'text-red-300' : 'text-slate-500'}`}>
-                                                        {val.toFixed(2)}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* Steady State Probabilities */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30">
-                                    <h3 className="text-xs font-bold text-blue-400 mb-2">Actor A Steady-State</h3>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">Low:</span>
-                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[0] * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">Medium:</span>
-                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[1] * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">High:</span>
-                                        <span className="text-blue-300 font-bold">{(simResults.steadyStateA[2] * 100).toFixed(1)}%</span>
-                                    </div>
-                                </div>
-                                <div className="bg-red-900/20 p-3 rounded border border-red-500/30">
-                                    <h3 className="text-xs font-bold text-red-400 mb-2">Actor B Steady-State</h3>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">Low:</span>
-                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[0] * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">Medium:</span>
-                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[1] * 100).toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-slate-400">High:</span>
-                                        <span className="text-red-300 font-bold">{(simResults.steadyStateB[2] * 100).toFixed(1)}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                        Markov Chain Monte Carlo simulation ({simResults ? simResults.iterations.toLocaleString() : '1000'} iterations × 10 time steps). Yellow dashed line shows baseline probability inferred from observed casualties.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(h(App));
-</script>
-```
-
-</body>
-</html>
+        function SimulationModule({ importedProfile }) {
+            const [actorA, setActorA] = useState({ name: 'Actor A', behaviors: { structural: true, ideational: false, institutional: false, psychological: false, positional: false } });
+            const [actorB, setActorB] = useState({ name: 'Actor
