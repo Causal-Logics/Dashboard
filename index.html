@@ -18,6 +18,18 @@
     .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
     .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
     .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
+    .axiom-card.new-segment { 
+        animation: slideIn 0.4s ease-out, highlight 2s ease-out;
+        border-color: #3b82f6;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes highlight {
+        0% { background-color: #1e3a8a; }
+        100% { background-color: #0f172a; }
+    }
     .custom-scroll::-webkit-scrollbar { width: 6px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
 </style>
@@ -89,9 +101,17 @@
 
     function ResearchModule({ onActorExport, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Ukraine");
-        const [actors, setActors] = useState("Russian military, Ukrainian military");
+        const [incident, setIncident] = useState("Sanctuary city policy");
+        const [actors, setActors] = useState("ICE, Mayor");
         const [progress, setProgress] = useState("");
+
+        // Clear "isNew" flag after animation completes
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                setHistory(prev => prev.map(item => ({ ...item, isNew: false })));
+            }, 2000);
+            return () => clearTimeout(timer);
+        }, [history]);
 
         const generateMockSegments = (incidentText, actorList) => {
             const actorArray = actorList.split(',').map(a => a.trim());
@@ -137,43 +157,67 @@
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
             const segments = [];
+            const now = new Date();
 
             for (let i = 0; i < numSegments; i++) {
                 const template = templates[i % templates.length];
                 const actor = actorArray[Math.floor(Math.random() * actorArray.length)];
                 const source = sources[Math.floor(Math.random() * sources.length)];
                 
+                // Generate sequential timestamps
+                const segmentTime = new Date(now.getTime() + (i * 1000));
+                const timeStr = segmentTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                
                 segments.push({
                     id: Date.now() + i,
-                    timestamp: new Date().toLocaleDateString(),
+                    timestamp: timeStr,
                     actor: actor,
                     source: source,
                     text: template.text,
-                    scores: template.scores
+                    scores: template.scores,
+                    isNew: true
                 });
             }
 
             return segments;
         };
 
-        const handleSearch = () => {
+        const handleSearch = async () => {
             setLoading(true);
-            setProgress("Searching news sources...");
+            setProgress("Initializing search pipeline...");
             
-            setTimeout(() => {
-                setProgress("Extracting article segments...");
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const segments = generateMockSegments(incident, actors);
+            
+            // Process each segment sequentially
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i];
                 
-                setTimeout(() => {
-                    setProgress("Running NLP classification...");
-                    
-                    setTimeout(() => {
-                        const newSegments = generateMockSegments(incident, actors);
-                        setHistory([...newSegments, ...history]);
-                        setProgress("");
-                        setLoading(false);
-                    }, 800);
-                }, 800);
-            }, 800);
+                setProgress(`Processing ${segment.source} (${i + 1}/${segments.length})...`);
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                setProgress(`Extracting segment from ${segment.source}...`);
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                setProgress(`Running NLP classification on ${segment.source}...`);
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                // Add this segment to history
+                setHistory(prev => [segment, ...prev]);
+                
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            setProgress("Analysis complete!");
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            setProgress("");
+            setLoading(false);
         };
 
         return (
@@ -203,18 +247,28 @@
                 <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-emerald-400 font-bold">📈 LATEST ANALYZED SEGMENTS</h2>
-                        {history.length > 0 && (
-                            <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
-                                {history.length} segments
-                            </span>
-                        )}
+                        <div className="flex gap-2 items-center">
+                            {history.length > 0 && (
+                                <>
+                                    <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
+                                        {history.length} segments
+                                    </span>
+                                    <button 
+                                        onClick={() => setHistory([])}
+                                        className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all"
+                                    >
+                                        CLEAR
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
                         {history.length === 0 ? (
                             <p className="text-sm text-slate-500 italic text-center py-8">No segments analyzed yet. Start automated research to begin.</p>
                         ) : (
                             history.map(item => (
-                                <div key={item.id} className="axiom-card p-4 rounded-lg">
+                                <div key={item.id} className={`axiom-card p-4 rounded-lg ${item.isNew ? 'new-segment' : ''}`}>
                                     <div className="flex justify-between mb-2">
                                         <div>
                                             <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
