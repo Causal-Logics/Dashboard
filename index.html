@@ -63,7 +63,7 @@
         const [selectedActorProfile, setSelectedActorProfile] = useState(null);
 
         // Function to "Bridge" the two codes
-        const bridgeToSimulation = (actorName, scores, aggregatedData = null) => {
+        const bridgeToSimulation = (actorName, scores, aggregatedData = null, casualtyData = null) => {
             setSelectedActorProfile({
                 name: actorName,
                 structural: scores.Structural > 0,
@@ -72,7 +72,8 @@
                 psychological: scores.Psychological > 0,
                 positional: Math.random() > 0.5, // Simulated detection
                 aggregatedScores: aggregatedData ? aggregatedData : scores,
-                isAggregated: aggregatedData !== null
+                isAggregated: aggregatedData !== null,
+                casualtyData: casualtyData
             });
             setActiveTab('simulation');
         };
@@ -91,6 +92,7 @@
 
             const actorSet = new Set();
             const sourceSet = new Set();
+            let totalCasualties = 0;
 
             segments.forEach(segment => {
                 Object.keys(aggregated).forEach(key => {
@@ -98,12 +100,20 @@
                 });
                 actorSet.add(segment.actor);
                 sourceSet.add(segment.source);
+                totalCasualties += segment.casualties || 0;
             });
 
             const actorList = Array.from(actorSet).join(', ');
             const profileName = `Aggregated: ${actorList} (${segments.length} segments, ${sourceSet.size} sources)`;
 
-            bridgeToSimulation(profileName, aggregated, aggregated);
+            const casualtyData = {
+                total: totalCasualties,
+                average: (totalCasualties / segments.length).toFixed(1),
+                segments: segments.length,
+                perSource: segments.map(s => ({ source: s.source, casualties: s.casualties }))
+            };
+
+            bridgeToSimulation(profileName, aggregated, aggregated, casualtyData);
         };
 
         return (
@@ -154,41 +164,49 @@
             const templates = [
                 {
                     text: "The institutional framework requires compliance with federal regulations and legal mandates...",
-                    scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 }
+                    scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 },
+                    casualties: Math.floor(Math.random() * 3) // Low casualties for institutional
                 },
                 {
                     text: "Resource constraints and budget limitations prevent full implementation of the policy...",
-                    scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 }
+                    scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 },
+                    casualties: Math.floor(Math.random() * 5)
                 },
                 {
                     text: "Community identity and cultural values drive strong resistance to the proposed changes...",
-                    scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 }
+                    scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 },
+                    casualties: Math.floor(Math.random() * 15) + 5 // Higher for ideational conflicts
                 },
                 {
                     text: "Fear and uncertainty among residents have escalated tensions in the community...",
-                    scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 }
+                    scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 },
+                    casualties: Math.floor(Math.random() * 12) + 3 // Moderate-high for psychological
                 },
                 {
                     text: "Court rulings and regulatory authority shape the boundaries of permissible action...",
-                    scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 }
+                    scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 },
+                    casualties: Math.floor(Math.random() * 2)
                 },
                 {
                     text: "Traditional beliefs and symbolic meanings inform the stakeholder response patterns...",
-                    scores: { Structural: 0, Institutional: 1, Ideational: 4, Psychological: 1 }
+                    scores: { Structural: 0, Institutional: 1, Ideational: 4, Psychological: 1 },
+                    casualties: Math.floor(Math.random() * 10) + 5
                 },
                 {
                     text: "Physical infrastructure and material resources determine operational capacity...",
-                    scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 }
+                    scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 },
+                    casualties: Math.floor(Math.random() * 8) + 2
                 },
                 {
                     text: "Emotional reactions and cognitive biases influence decision-making processes...",
-                    scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 }
+                    scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 },
+                    casualties: Math.floor(Math.random() * 10) + 2
                 }
             ];
 
             const sources = [
                 "New York Times", "Washington Post", "Local News Network", 
-                "Associated Press", "Reuters", "City Tribune", "BBC"
+                "Associated Press", "Reuters", "City Tribune"
             ];
 
             const numSegments = Math.min(5 + Math.floor(Math.random() * 4), templates.length);
@@ -215,6 +233,7 @@
                     source: source,
                     text: template.text,
                     scores: template.scores,
+                    casualties: template.casualties,
                     isNew: true
                 });
             }
@@ -316,7 +335,14 @@
                                             <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
                                             {item.source && <span className="text-[10px] text-slate-500 ml-2">via {item.source}</span>}
                                         </div>
-                                        <span className="text-[10px] text-slate-500">{item.timestamp}</span>
+                                        <div className="flex items-center gap-2">
+                                            {item.casualties !== undefined && (
+                                                <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded font-bold">
+                                                    {item.casualties} casualties
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] text-slate-500">{item.timestamp}</span>
+                                        </div>
                                     </div>
                                     <p className="text-xs italic text-slate-300 mb-3">"{item.text}"</p>
                                     <div className="flex justify-between items-center">
@@ -341,121 +367,325 @@
     }
 
     function SimulationModule({ importedProfile }) {
-        const [behaviors, setBehaviors] = useState({
-            structural: true, ideational: false, institutional: false, psychological: false, positional: false
+        const [actorA, setActorA] = useState({
+            name: 'Actor A',
+            behaviors: { structural: true, ideational: false, institutional: false, psychological: false, positional: false }
+        });
+        const [actorB, setActorB] = useState({
+            name: 'Actor B',
+            behaviors: { structural: false, ideational: true, institutional: false, psychological: false, positional: false }
         });
         const [simResults, setSimResults] = useState(null);
+        const [activeActor, setActiveActor] = useState('both'); // 'A', 'B', or 'both'
+        const [casualtyData, setCasualtyData] = useState(null);
 
         useEffect(() => {
             if (importedProfile) {
-                setBehaviors({
-                    structural: importedProfile.structural,
-                    ideational: importedProfile.ideational,
-                    institutional: importedProfile.institutional,
-                    psychological: importedProfile.psychological,
-                    positional: importedProfile.positional
-                });
+                // Set casualty data if available
+                if (importedProfile.casualtyData) {
+                    setCasualtyData(importedProfile.casualtyData);
+                }
+
+                // Check if this is an aggregated profile with multiple actors
+                if (importedProfile.isAggregated && importedProfile.name.includes(',')) {
+                    // Try to split actors
+                    const actorNames = importedProfile.name.split(':')[1]?.split('(')[0]?.split(',').map(a => a.trim()) || [];
+                    if (actorNames.length >= 2) {
+                        setActorA(prev => ({
+                            ...prev,
+                            name: actorNames[0],
+                            behaviors: {
+                                structural: importedProfile.structural,
+                                ideational: importedProfile.ideational,
+                                institutional: importedProfile.institutional,
+                                psychological: importedProfile.psychological,
+                                positional: importedProfile.positional
+                            }
+                        }));
+                        setActorB(prev => ({
+                            ...prev,
+                            name: actorNames[1],
+                            behaviors: {
+                                structural: importedProfile.structural,
+                                ideational: importedProfile.ideational,
+                                institutional: importedProfile.institutional,
+                                psychological: importedProfile.psychological,
+                                positional: importedProfile.positional
+                            }
+                        }));
+                    }
+                } else {
+                    // Single actor import
+                    setActorA(prev => ({
+                        ...prev,
+                        name: importedProfile.name,
+                        behaviors: {
+                            structural: importedProfile.structural,
+                            ideational: importedProfile.ideational,
+                            institutional: importedProfile.institutional,
+                            psychological: importedProfile.psychological,
+                            positional: importedProfile.positional
+                        }
+                    }));
+                }
             }
         }, [importedProfile]);
 
         useEffect(() => {
             runSimulation();
-        }, [behaviors]);
+        }, [actorA.behaviors, actorB.behaviors, activeActor, casualtyData]);
 
         const runSimulation = () => {
             const iterations = 1000;
-            const results = [];
+            const resultsA = [];
+            const resultsB = [];
+            const resultsCombined = [];
             
-            for (let i = 0; i < iterations; i++) {
-                let casualtyProb = PROBABILITY_MAP['None'];
-                
-                if (behaviors.structural) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Structural']);
-                if (behaviors.ideational) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Ideational']);
-                if (behaviors.institutional) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Institutional']);
-                if (behaviors.psychological) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Psychological']);
-                if (behaviors.positional) casualtyProb = Math.max(casualtyProb, PROBABILITY_MAP['Pos']);
-                
-                // Add some variance
-                const variance = (Math.random() - 0.5) * 0.1;
-                results.push(Math.max(0, Math.min(1, casualtyProb + variance)));
+            // Use casualty data to calibrate baseline if available
+            let baselineCasualties = 0;
+            if (casualtyData) {
+                baselineCasualties = parseFloat(casualtyData.average);
             }
             
-            setSimResults(results);
-            plotDistribution(results);
+            for (let i = 0; i < iterations; i++) {
+                // Actor A simulation
+                let probA = PROBABILITY_MAP['None'];
+                if (actorA.behaviors.structural) probA = Math.max(probA, PROBABILITY_MAP['Structural']);
+                if (actorA.behaviors.ideational) probA = Math.max(probA, PROBABILITY_MAP['Ideational']);
+                if (actorA.behaviors.institutional) probA = Math.max(probA, PROBABILITY_MAP['Institutional']);
+                if (actorA.behaviors.psychological) probA = Math.max(probA, PROBABILITY_MAP['Psychological']);
+                if (actorA.behaviors.positional) probA = Math.max(probA, PROBABILITY_MAP['Pos']);
+                const varianceA = (Math.random() - 0.5) * 0.1;
+                resultsA.push(Math.max(0, Math.min(1, probA + varianceA)));
+
+                // Actor B simulation
+                let probB = PROBABILITY_MAP['None'];
+                if (actorB.behaviors.structural) probB = Math.max(probB, PROBABILITY_MAP['Structural']);
+                if (actorB.behaviors.ideational) probB = Math.max(probB, PROBABILITY_MAP['Ideational']);
+                if (actorB.behaviors.institutional) probB = Math.max(probB, PROBABILITY_MAP['Institutional']);
+                if (actorB.behaviors.psychological) probB = Math.max(probB, PROBABILITY_MAP['Psychological']);
+                if (actorB.behaviors.positional) probB = Math.max(probB, PROBABILITY_MAP['Pos']);
+                const varianceB = (Math.random() - 0.5) * 0.1;
+                resultsB.push(Math.max(0, Math.min(1, probB + varianceB)));
+
+                // Combined interaction (max of both)
+                resultsCombined.push(Math.max(resultsA[i], resultsB[i]));
+            }
+            
+            // Convert probabilities to casualty estimates (scale by baseline if available)
+            const maxCasualties = baselineCasualties > 0 ? baselineCasualties * 2 : 50;
+            const casualtiesA = resultsA.map(p => p * maxCasualties);
+            const casualtiesB = resultsB.map(p => p * maxCasualties);
+            const casualtiesCombined = resultsCombined.map(p => p * maxCasualties);
+            
+            setSimResults({ 
+                actorA: resultsA, 
+                actorB: resultsB, 
+                combined: resultsCombined,
+                casualtiesA: casualtiesA,
+                casualtiesB: casualtiesB,
+                casualtiesCombined: casualtiesCombined,
+                maxCasualties: maxCasualties
+            });
+            plotDistribution(casualtiesA, casualtiesB, casualtiesCombined, maxCasualties);
         };
 
-        const plotDistribution = (results) => {
-            const trace = {
-                x: results,
-                type: 'histogram',
-                nbinsx: 30,
-                marker: { color: '#10b981', opacity: 0.7 }
-            };
+        const plotDistribution = (casualtiesA, casualtiesB, casualtiesCombined, maxCasualties) => {
+            const traces = [];
+
+            if (activeActor === 'A' || activeActor === 'both') {
+                traces.push({
+                    x: casualtiesA,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: actorA.name,
+                    marker: { color: '#3b82f6', opacity: 0.6 },
+                    visible: activeActor === 'both' ? true : true
+                });
+            }
+
+            if (activeActor === 'B' || activeActor === 'both') {
+                traces.push({
+                    x: casualtiesB,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: actorB.name,
+                    marker: { color: '#ef4444', opacity: 0.6 },
+                    visible: activeActor === 'both' ? true : true
+                });
+            }
+
+            if (activeActor === 'both') {
+                traces.push({
+                    x: casualtiesCombined,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: 'Combined (Max)',
+                    marker: { color: '#10b981', opacity: 0.7 },
+                    visible: true
+                });
+            }
+
+            // Add observed casualty line if available
+            if (casualtyData && casualtyData.average) {
+                const avgCasualty = parseFloat(casualtyData.average);
+                traces.push({
+                    x: [avgCasualty, avgCasualty],
+                    y: [0, 100],
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Observed Avg',
+                    line: { color: '#fbbf24', width: 3, dash: 'dash' }
+                });
+            }
 
             const layout = {
-                title: { text: 'Casualty Probability Distribution', font: { color: '#f8fafc' } },
-                xaxis: { title: 'Probability', color: '#94a3b8', range: [0, 1] },
+                title: { text: 'Predicted Casualty Distribution', font: { color: '#f8fafc' } },
+                xaxis: { 
+                    title: 'Estimated Casualties', 
+                    color: '#94a3b8', 
+                    range: [0, maxCasualties]
+                },
                 yaxis: { title: 'Frequency', color: '#94a3b8' },
                 plot_bgcolor: '#0f172a',
                 paper_bgcolor: '#0f172a',
-                font: { color: '#f8fafc' }
+                font: { color: '#f8fafc' },
+                barmode: 'overlay',
+                showlegend: true,
+                legend: { x: 0.65, y: 0.95, bgcolor: '#1e293b', bordercolor: '#334155', borderwidth: 1 }
             };
 
-            Plotly.newPlot('chart', [trace], layout, { responsive: true });
+            Plotly.newPlot('chart', traces, layout, { responsive: true });
         };
 
-        const avgProb = simResults ? (simResults.reduce((a, b) => a + b, 0) / simResults.length).toFixed(3) : '---';
+        const avgCasA = simResults ? (simResults.casualtiesA.reduce((a, b) => a + b, 0) / simResults.casualtiesA.length).toFixed(1) : '---';
+        const avgCasB = simResults ? (simResults.casualtiesB.reduce((a, b) => a + b, 0) / simResults.casualtiesB.length).toFixed(1) : '---';
+        const avgCasCombined = simResults ? (simResults.casualtiesCombined.reduce((a, b) => a + b, 0) / simResults.casualtiesCombined.length).toFixed(1) : '---';
 
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-4">ACTOR PROFILE</h2>
-                        {importedProfile && (
-                            <div className="mb-4 space-y-2">
-                                <div className="p-2 bg-emerald-900/20 border border-emerald-500/50 text-emerald-400 text-xs rounded">
-                                    DATA IMPORTED: {importedProfile.name}
+                    {/* Observed Casualties Panel */}
+                    {casualtyData && (
+                        <div className="bg-slate-900 p-6 rounded-xl border border-yellow-500/50">
+                            <h2 className="text-yellow-400 font-bold mb-3">📊 OBSERVED DATA</h2>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Total Casualties:</span>
+                                    <span className="text-white font-bold">{casualtyData.total}</span>
                                 </div>
-                                {importedProfile.isAggregated && importedProfile.aggregatedScores && (
-                                    <div className="p-3 bg-blue-900/20 border border-blue-500/50 rounded">
-                                        <div className="text-xs font-bold text-blue-400 mb-2">AGGREGATED SCORES:</div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {Object.entries(importedProfile.aggregatedScores).map(([key, value]) => (
-                                                <div key={key} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">
-                                                    <span className="text-slate-400">{key}:</span> <span className="text-white font-bold">{value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Average per Segment:</span>
+                                    <span className="text-yellow-400 font-bold">{casualtyData.average}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Segments Analyzed:</span>
+                                    <span className="text-white font-bold">{casualtyData.segments}</span>
+                                </div>
                             </div>
-                        )}
+                        </div>
+                    )}
+
+                    {/* Actor A Profile */}
+                    <div className="bg-slate-900 p-6 rounded-xl border border-blue-500/50">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-blue-400 font-bold">ACTOR A</h2>
+                            <input 
+                                value={actorA.name} 
+                                onChange={(e) => setActorA({...actorA, name: e.target.value})}
+                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
+                            />
+                        </div>
                         <div className="space-y-2">
-                            {Object.keys(behaviors).map(key => (
+                            {Object.keys(actorA.behaviors).map(key => (
                                 <button
                                     key={key}
-                                    onClick={() => setBehaviors(prev => ({...prev, [key]: !prev[key]}))}
-                                    className={`w-full text-left p-3 rounded border text-xs font-bold transition-all ${behaviors[key] ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                    onClick={() => setActorA({
+                                        ...actorA, 
+                                        behaviors: {...actorA.behaviors, [key]: !actorA.behaviors[key]}
+                                    })}
+                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorA.behaviors[key] ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
                                 >
-                                    {key.toUpperCase()} {behaviors[key] ? '✓' : '✗'}
+                                    {key.toUpperCase()} {actorA.behaviors[key] ? '✓' : '✗'}
                                 </button>
                             ))}
                         </div>
                     </div>
 
+                    {/* Actor B Profile */}
+                    <div className="bg-slate-900 p-6 rounded-xl border border-red-500/50">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-red-400 font-bold">ACTOR B</h2>
+                            <input 
+                                value={actorB.name} 
+                                onChange={(e) => setActorB({...actorB, name: e.target.value})}
+                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            {Object.keys(actorB.behaviors).map(key => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActorB({
+                                        ...actorB, 
+                                        behaviors: {...actorB.behaviors, [key]: !actorB.behaviors[key]}
+                                    })}
+                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorB.behaviors[key] ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    {key.toUpperCase()} {actorB.behaviors[key] ? '✓' : '✗'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Results */}
                     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold mb-2">RESULTS</h2>
-                        <div className="text-center">
-                            <div className="text-4xl font-bold text-emerald-400">{avgProb}</div>
-                            <div className="text-xs text-slate-500">Avg Casualty Probability</div>
+                        <h2 className="text-emerald-400 font-bold mb-4">PREDICTED CASUALTIES</h2>
+                        <div className="space-y-3">
+                            <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
+                                <div className="text-2xl font-bold text-blue-400">{avgCasA}</div>
+                                <div className="text-[10px] text-slate-400">Actor A Avg</div>
+                            </div>
+                            <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
+                                <div className="text-2xl font-bold text-red-400">{avgCasB}</div>
+                                <div className="text-[10px] text-slate-400">Actor B Avg</div>
+                            </div>
+                            <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
+                                <div className="text-2xl font-bold text-emerald-400">{avgCasCombined}</div>
+                                <div className="text-[10px] text-slate-400">Combined Max</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
-                    <h2 className="text-emerald-400 font-bold mb-4">PROBABILITY DISTRIBUTION</h2>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-emerald-400 font-bold">CASUALTY PREDICTION</h2>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setActiveActor('A')}
+                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'A' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                            >
+                                A Only
+                            </button>
+                            <button 
+                                onClick={() => setActiveActor('B')}
+                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'B' ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                            >
+                                B Only
+                            </button>
+                            <button 
+                                onClick={() => setActiveActor('both')}
+                                className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'both' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                            >
+                                Both
+                            </button>
+                        </div>
+                    </div>
                     <div id="chart" className="w-full h-[400px]"></div>
-                    <p className="text-[10px] text-slate-500 mt-4 italic text-center">Monte Carlo simulation with 1000 iterations based on selected causal logics.</p>
+                    <p className="text-[10px] text-slate-500 mt-4 italic text-center">
+                        Monte Carlo simulation with 1000 iterations. Yellow dashed line shows observed average casualties from NLP analysis.
+                    </p>
                 </div>
             </div>
         );
