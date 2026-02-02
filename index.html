@@ -132,8 +132,8 @@
             <div className="min-h-screen flex flex-col">
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.1</h1>
-                        <p className="text-xs text-slate-400">Injury Count Forecasting from Sequential NLP Analysis</p>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.2</h1>
+                        <p className="text-xs text-slate-400">Overall Injury Forecasting from Dual-Actor Behavioral Analysis</p>
                     </div>
                     <nav className="flex gap-6">
                         <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
@@ -535,7 +535,6 @@
             behaviors: { structural: false, ideational: false, institutional: false, psychological: false, positional: false }
         });
         const [simResults, setSimResults] = useState(null);
-        const [activeActor, setActiveActor] = useState('both');
         const [casualtyData, setCasualtyData] = useState(null);
         const [historicalData, setHistoricalData] = useState(null);
         const [iterations, setIterations] = useState(1000);
@@ -575,12 +574,6 @@
                 runSimulation();
             }
         }, [actorA.behaviors, actorB.behaviors, historicalData]);
-
-        useEffect(() => {
-            if (simResults) {
-                plotDistribution(simResults.injuriesA, simResults.injuriesB, simResults.injuriesCombined, simResults.historicalInjuries);
-            }
-        }, [activeActor]);
 
         const runSimulation = async () => {
             if (!historicalData || historicalData.length === 0) return;
@@ -775,49 +768,28 @@
         const plotDistribution = (injuriesA, injuriesB, injuriesCombined, historicalInjuries) => {
             const traces = [];
 
+            // Historical baseline
             if (historicalInjuries && historicalInjuries.length > 0) {
                 traces.push({
                     x: historicalInjuries,
                     type: 'histogram',
                     nbinsx: 15,
                     name: 'Historical (Observed)',
-                    marker: { color: '#fbbf24', opacity: 0.5 },
-                    opacity: 0.5
+                    marker: { color: '#fbbf24', opacity: 0.6 }
                 });
             }
 
-            if (activeActor === 'A' || activeActor === 'both') {
-                traces.push({
-                    x: injuriesA,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: `${actorA.name} (Predicted)`,
-                    marker: { color: '#3b82f6', opacity: 0.6 }
-                });
-            }
-
-            if (activeActor === 'B' || activeActor === 'both') {
-                traces.push({
-                    x: injuriesB,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: `${actorB.name} (Predicted)`,
-                    marker: { color: '#ef4444', opacity: 0.6 }
-                });
-            }
-
-            if (activeActor === 'both') {
-                traces.push({
-                    x: injuriesCombined,
-                    type: 'histogram',
-                    nbinsx: 30,
-                    name: 'Combined (Max)',
-                    marker: { color: '#10b981', opacity: 0.7 }
-                });
-            }
+            // Combined prediction only
+            traces.push({
+                x: injuriesCombined,
+                type: 'histogram',
+                nbinsx: 30,
+                name: 'Predicted (Next Step)',
+                marker: { color: '#10b981', opacity: 0.7 }
+            });
 
             const layout = {
-                title: { text: 'Injury Count Distribution', font: { color: '#f8fafc' } },
+                title: { text: 'Overall Injury Count Distribution', font: { color: '#f8fafc' } },
                 xaxis: { title: 'Number of Injuries', color: '#94a3b8' },
                 yaxis: { title: 'Frequency', color: '#94a3b8' },
                 plot_bgcolor: '#0f172a',
@@ -976,19 +948,9 @@
 
                     <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
                         <h2 className="text-orange-400 font-bold mb-4">PREDICTED INJURY COUNT</h2>
-                        <div className="space-y-3">
-                            <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
-                                <div className="text-2xl font-bold text-blue-400">{avgInjuryA}</div>
-                                <div className="text-[10px] text-slate-400">Actor A Avg</div>
-                            </div>
-                            <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
-                                <div className="text-2xl font-bold text-red-400">{avgInjuryB}</div>
-                                <div className="text-[10px] text-slate-400">Actor B Avg</div>
-                            </div>
-                            <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
-                                <div className="text-2xl font-bold text-emerald-400">{avgInjuryCombined}</div>
-                                <div className="text-[10px] text-slate-400">Combined Max</div>
-                            </div>
+                        <div className="text-center p-4 bg-emerald-900/20 rounded border border-emerald-500/30">
+                            <div className="text-3xl font-bold text-emerald-400">{avgInjuryCombined}</div>
+                            <div className="text-xs text-slate-400 mt-1">Overall Average (Next Step)</div>
                         </div>
                     </div>
                 </div>
@@ -996,27 +958,7 @@
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-emerald-400 font-bold">INJURY COUNT PREDICTION (Next Time Step)</h2>
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => setActiveActor('A')}
-                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'A' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                >
-                                    A Only
-                                </button>
-                                <button 
-                                    onClick={() => setActiveActor('B')}
-                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'B' ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                >
-                                    B Only
-                                </button>
-                                <button 
-                                    onClick={() => setActiveActor('both')}
-                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'both' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                >
-                                    Both
-                                </button>
-                            </div>
+                            <h2 className="text-emerald-400 font-bold">OVERALL INJURY PREDICTION (Next Time Step)</h2>
                         </div>
                         <div id="chart" className="w-full h-[400px]"></div>
 
@@ -1025,7 +967,7 @@
                                 <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
                                     <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 EMPIRICAL MARKOV CHAIN</h3>
                                     <p className="text-[10px] text-cyan-200">
-                                        Built from {historicalData.length} sequential observations. Injury count states: Low (0-33%), Med (33-67%), High (67-100%). Adjusted for next-step behaviors.
+                                        Built from {historicalData.length} sequential observations. Overall injury prediction incorporates both Actor A and Actor B behaviors through separate Markov chains. States: Low (0-33%), Med (33-67%), High (67-100%).
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1109,32 +1051,20 @@
                         )}
 
                         <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                            Yellow = Historical injury counts from NLP data. Blue/Red/Green = Predicted injury counts for next time step.
+                            Yellow = Historical injury counts from NLP data. Green = Predicted overall injury count for next step based on Actor A & B behaviors.
                         </p>
                     </div>
 
                     {simResults && (
                         <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
-                            <h2 className="text-orange-400 font-bold mb-4">📊 INJURY COUNT STATISTICS</h2>
-                            <div className="space-y-4">
-                                <InjuryWireframe 
-                                    injuries={simResults.injuriesA} 
-                                    actorName={`${actorA.name} (Next Step)`}
-                                    color="#3b82f6"
-                                />
-                                <InjuryWireframe 
-                                    injuries={simResults.injuriesB} 
-                                    actorName={`${actorB.name} (Next Step)`}
-                                    color="#ef4444"
-                                />
-                                <InjuryWireframe 
-                                    injuries={simResults.injuriesCombined} 
-                                    actorName="Combined (Max)"
-                                    color="#10b981"
-                                />
-                            </div>
+                            <h2 className="text-orange-400 font-bold mb-4">📊 OVERALL INJURY STATISTICS</h2>
+                            <InjuryWireframe 
+                                injuries={simResults.injuriesCombined} 
+                                actorName="Overall Injuries (Next Step)"
+                                color="#10b981"
+                            />
                             <p className="text-[9px] text-slate-500 italic text-center mt-4 pt-3 border-t border-slate-700">
-                                95% CI (shaded), median (|), mean (●). Injury count predictions based on {simResults.iterations.toLocaleString()} Monte Carlo iterations.
+                                95% CI (shaded), median (|), mean (●). Based on {simResults.iterations.toLocaleString()} Monte Carlo iterations incorporating both actors' behaviors.
                             </p>
                         </div>
                     )}
