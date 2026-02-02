@@ -111,7 +111,7 @@
             <div className="min-h-screen flex flex-col">
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.3</h1>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.4</h1>
                         <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Death Probability + Injury Estimation</p>
                     </div>
                     <nav className="flex gap-6">
@@ -455,9 +455,7 @@
             <div className="p-4 rounded border" style={{ borderColor: color + '40', backgroundColor: color + '10' }}>
                 <h4 className="text-xs font-bold mb-3" style={{ color }}>{actorName}</h4>
                 
-                {/* Wireframe visualization */}
                 <div className="relative h-24 mb-4 bg-slate-900/50 rounded">
-                    {/* CI Range */}
                     <div 
                         className="absolute top-1/2 transform -translate-y-1/2 h-12 rounded"
                         style={{
@@ -468,7 +466,6 @@
                         }}
                     />
                     
-                    {/* Median line */}
                     <div 
                         className="absolute top-0 bottom-0 w-0.5"
                         style={{
@@ -478,7 +475,6 @@
                         }}
                     />
                     
-                    {/* Mean marker */}
                     <div 
                         className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 rounded-full border-2"
                         style={{
@@ -489,12 +485,10 @@
                         }}
                     />
                     
-                    {/* Labels */}
                     <div className="absolute -bottom-5 left-0 text-[9px] text-slate-500">0</div>
                     <div className="absolute -bottom-5 right-0 text-[9px] text-slate-500">{maxVal}</div>
                 </div>
 
-                {/* Statistics */}
                 <div className="space-y-1">
                     <div className="flex justify-between text-[10px]">
                         <span className="text-slate-400">Mean (●):</span>
@@ -600,6 +594,13 @@
                 setActorB(prev => ({ ...prev, name: actorNames.actorB }));
             }
         }, [actorNames]);
+
+        // Re-run simulation when behaviors change
+        useEffect(() => {
+            if (simResults !== null) {
+                runSimulation();
+            }
+        }, [actorA.behaviors, actorB.behaviors]);
 
         useEffect(() => {
             if (simResults === null || casualtyData) {
@@ -766,9 +767,10 @@
         const plotDistribution = (resultsA, resultsB, resultsCombined, observedProb) => {
             const traces = [];
 
+            // Convert to percentages for display
             if (activeActor === 'A' || activeActor === 'both') {
                 traces.push({
-                    x: resultsA,
+                    x: resultsA.map(v => v * 100),
                     type: 'histogram',
                     nbinsx: 30,
                     name: actorA.name,
@@ -778,7 +780,7 @@
 
             if (activeActor === 'B' || activeActor === 'both') {
                 traces.push({
-                    x: resultsB,
+                    x: resultsB.map(v => v * 100),
                     type: 'histogram',
                     nbinsx: 30,
                     name: actorB.name,
@@ -788,7 +790,7 @@
 
             if (activeActor === 'both') {
                 traces.push({
-                    x: resultsCombined,
+                    x: resultsCombined.map(v => v * 100),
                     type: 'histogram',
                     nbinsx: 30,
                     name: 'Combined (Max)',
@@ -798,7 +800,7 @@
 
             if (casualtyData && observedProb) {
                 traces.push({
-                    x: [observedProb, observedProb],
+                    x: [observedProb * 100, observedProb * 100],
                     y: [0, 100],
                     type: 'scatter',
                     mode: 'lines',
@@ -809,7 +811,7 @@
 
             const layout = {
                 title: { text: 'Death Probability Distribution', font: { color: '#f8fafc' } },
-                xaxis: { title: 'Probability of Death (0-1)', color: '#94a3b8', range: [0, 1] },
+                xaxis: { title: 'Probability of Death (%)', color: '#94a3b8', range: [0, 100] },
                 yaxis: { title: 'Frequency', color: '#94a3b8' },
                 plot_bgcolor: '#0f172a',
                 paper_bgcolor: '#0f172a',
@@ -822,9 +824,9 @@
             Plotly.newPlot('chart', traces, layout, { responsive: true });
         };
 
-        const avgProbA = simResults ? (simResults.actorA.reduce((a, b) => a + b, 0) / simResults.actorA.length).toFixed(3) : '---';
-        const avgProbB = simResults ? (simResults.actorB.reduce((a, b) => a + b, 0) / simResults.actorB.length).toFixed(3) : '---';
-        const avgProbCombined = simResults ? (simResults.combined.reduce((a, b) => a + b, 0) / simResults.combined.length).toFixed(3) : '---';
+        const avgProbA = simResults ? ((simResults.actorA.reduce((a, b) => a + b, 0) / simResults.actorA.length) * 100).toFixed(1) : '---';
+        const avgProbB = simResults ? ((simResults.actorB.reduce((a, b) => a + b, 0) / simResults.actorB.length) * 100).toFixed(1) : '---';
+        const avgProbCombined = simResults ? ((simResults.combined.reduce((a, b) => a + b, 0) / simResults.combined.length) * 100).toFixed(1) : '---';
 
         const avgInjuriesA = simResults ? Math.round(simResults.injuriesA.reduce((a, b) => a + b, 0) / simResults.injuriesA.length) : 0;
         const avgInjuriesB = simResults ? Math.round(simResults.injuriesB.reduce((a, b) => a + b, 0) / simResults.injuriesB.length) : 0;
@@ -859,7 +861,7 @@
                                     <div className="pt-2 mt-2 border-t border-yellow-500/30">
                                         <div className="flex justify-between text-xs">
                                             <span className="text-slate-400">Inferred Death Prob:</span>
-                                            <span className="text-yellow-300 font-bold">{simResults.observedDeathProb.toFixed(3)}</span>
+                                            <span className="text-yellow-300 font-bold">{(simResults.observedDeathProb * 100).toFixed(1)}%</span>
                                         </div>
                                     </div>
                                 )}
@@ -917,7 +919,7 @@
                     </div>
 
                     <div className="bg-slate-900 p-6 rounded-xl border border-blue-500/50">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-2">
                             <h2 className="text-blue-400 font-bold">ACTOR A</h2>
                             <input 
                                 value={actorA.name} 
@@ -925,6 +927,7 @@
                                 className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
                             />
                         </div>
+                        <p className="text-[9px] text-cyan-400 mb-3 italic">Toggle behaviors to update predictions ↓</p>
                         <div className="space-y-2">
                             {Object.keys(actorA.behaviors).map(key => (
                                 <button
@@ -942,7 +945,7 @@
                     </div>
 
                     <div className="bg-slate-900 p-6 rounded-xl border border-red-500/50">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-2">
                             <h2 className="text-red-400 font-bold">ACTOR B</h2>
                             <input 
                                 value={actorB.name} 
@@ -950,6 +953,7 @@
                                 className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
                             />
                         </div>
+                        <p className="text-[9px] text-cyan-400 mb-3 italic">Toggle behaviors to update predictions ↓</p>
                         <div className="space-y-2">
                             {Object.keys(actorB.behaviors).map(key => (
                                 <button
@@ -970,15 +974,15 @@
                         <h2 className="text-emerald-400 font-bold mb-4">DEATH PROBABILITY</h2>
                         <div className="space-y-3">
                             <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
-                                <div className="text-2xl font-bold text-blue-400">{avgProbA}</div>
+                                <div className="text-2xl font-bold text-blue-400">{avgProbA}%</div>
                                 <div className="text-[10px] text-slate-400">Actor A Avg</div>
                             </div>
                             <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
-                                <div className="text-2xl font-bold text-red-400">{avgProbB}</div>
+                                <div className="text-2xl font-bold text-red-400">{avgProbB}%</div>
                                 <div className="text-[10px] text-slate-400">Actor B Avg</div>
                             </div>
                             <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
-                                <div className="text-2xl font-bold text-emerald-400">{avgProbCombined}</div>
+                                <div className="text-2xl font-bold text-emerald-400">{avgProbCombined}%</div>
                                 <div className="text-[10px] text-slate-400">Combined Max</div>
                             </div>
                         </div>
@@ -1035,7 +1039,7 @@
                                 <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
                                     <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 MARKOV CHAIN MODEL</h3>
                                     <p className="text-[10px] text-cyan-200">
-                                        Transition matrices show probability of moving between death probability states (Low: 0-0.3, Medium: 0.3-0.7, High: 0.7-1.0). Steady-state shows long-term equilibrium.
+                                        Transition matrices show probability of moving between death probability states (Low: 0-30%, Medium: 30-70%, High: 70-100%). Steady-state shows long-term equilibrium.
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1123,7 +1127,6 @@
                         </p>
                     </div>
 
-                    {/* INJURY STATISTICS WIREFRAME */}
                     {simResults && (
                         <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
                             <h2 className="text-orange-400 font-bold mb-4">📊 INJURY STATISTICS WIREFRAME</h2>
