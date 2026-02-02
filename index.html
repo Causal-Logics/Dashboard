@@ -54,7 +54,7 @@
         const [activeTab, setActiveTab] = useState('research');
         const [analysisHistory, setAnalysisHistory] = useState([]);
         const [selectedActorProfile, setSelectedActorProfile] = useState(null);
-        const [actorNames, setActorNames] = useState({ actorA: 'Actor A', actorB: 'Actor B' });
+        const [actorNames, setActorNames] = useState({ actorA: 'Government', actorB: 'Protestors' });
 
         const bridgeToSimulation = (actorName, scores, aggregatedData = null, casualtyData = null, actorAssignments = null, historicalData = null) => {
             setSelectedActorProfile({
@@ -104,8 +104,8 @@
 
             const actors = actorList.split(',').map(a => a.trim()).filter(a => a.length > 0);
             const actorAssignments = {
-                actorA: actors[0] || 'Actor A',
-                actorB: actors[1] || 'Actor B'
+                actorA: actors[0] || 'Government',
+                actorB: actors[1] || 'Protestors'
             };
 
             // Prepare historical time series data
@@ -132,7 +132,7 @@
             <div className="min-h-screen flex flex-col">
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.2</h1>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.3</h1>
                         <p className="text-xs text-slate-400">Overall Injury Forecasting from Dual-Actor Behavioral Analysis</p>
                     </div>
                     <nav className="flex gap-6">
@@ -152,8 +152,8 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Sanctuary city policy");
-        const [actors, setActors] = useState("ICE, Mayor");
+        const [incident, setIncident] = useState("Iranian protests");
+        const [actors, setActors] = useState("Government, Protestors");
         const [numSources, setNumSources] = useState(10);
         const [startDate, setStartDate] = useState(() => {
             const date = new Date();
@@ -322,7 +322,7 @@
                                 onChange={e => setActors(e.target.value)} 
                                 className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"
                             />
-                            <p className="text-[10px] text-cyan-400 mt-1">First actor → Actor A, Second → Actor B</p>
+                            <p className="text-[10px] text-cyan-400 mt-1">First actor → Actor A (Government), Second → Actor B (Protestors)</p>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-3">
@@ -527,11 +527,11 @@
 
     function SimulationModule({ importedProfile, actorNames }) {
         const [actorA, setActorA] = useState({
-            name: actorNames?.actorA || 'Actor A',
+            name: actorNames?.actorA || 'Government',
             behaviors: { structural: false, ideational: false, institutional: false, psychological: false, positional: false }
         });
         const [actorB, setActorB] = useState({
-            name: actorNames?.actorB || 'Actor B',
+            name: actorNames?.actorB || 'Protestors',
             behaviors: { structural: false, ideational: false, institutional: false, psychological: false, positional: false }
         });
         const [simResults, setSimResults] = useState(null);
