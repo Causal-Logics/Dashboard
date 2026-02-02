@@ -132,8 +132,8 @@
             <div className="min-h-screen flex flex-col">
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.0</h1>
-                        <p className="text-xs text-slate-400">Data-Driven Markov Chains from Sequential NLP Analysis</p>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.1</h1>
+                        <p className="text-xs text-slate-400">Injury Count Forecasting from Sequential NLP Analysis</p>
                     </div>
                     <nav className="flex gap-6">
                         <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
@@ -578,7 +578,7 @@
 
         useEffect(() => {
             if (simResults) {
-                plotDistribution(simResults.actorA, simResults.actorB, simResults.combined, simResults.historicalInjuries);
+                plotDistribution(simResults.injuriesA, simResults.injuriesB, simResults.injuriesCombined, simResults.historicalInjuries);
             }
         }, [activeActor]);
 
@@ -600,9 +600,6 @@
             const matrixA = adjustMatrixForNextStep(empiricalTransitions.matrixA, actorA.behaviors);
             const matrixB = adjustMatrixForNextStep(empiricalTransitions.matrixB, actorB.behaviors);
 
-            const resultsA = [];
-            const resultsB = [];
-            const resultsCombined = [];
             const injuriesA = [];
             const injuriesB = [];
             const injuriesCombined = [];
@@ -643,7 +640,7 @@
             };
 
             const stateToInjuries = (state, baseInjuries) => {
-                // Maps probability state to injury count
+                // Maps injury severity state to actual injury count
                 // Low (0): 0-33% of max, Med (1): 33-67%, High (2): 67-100%
                 const ranges = [
                     [0, baseInjuries * 0.33],
@@ -681,15 +678,10 @@
                 injuriesCombined.push(Math.max(injuryA, injuryB));
             }
 
-            // Convert injuries to percentages for injury probability
-            resultsA.push(...injuriesA.map(inj => (inj / maxInjuryA) * 100));
-            resultsB.push(...injuriesB.map(inj => (inj / maxInjuryB) * 100));
-            resultsCombined.push(...injuriesCombined.map(inj => (Math.max(inj / maxInjuryA, inj / maxInjuryB)) * 100));
-
             setSimResults({
-                actorA: resultsA,
-                actorB: resultsB,
-                combined: resultsCombined,
+                actorA: injuriesA,
+                actorB: injuriesB,
+                combined: injuriesCombined,
                 injuriesA: injuriesA,
                 injuriesB: injuriesB,
                 injuriesCombined: injuriesCombined,
@@ -702,7 +694,7 @@
                 empiricalTransitions: empiricalTransitions
             });
             
-            plotDistribution(resultsA, resultsB, resultsCombined, historicalData.map(d => d.injuries));
+            plotDistribution(injuriesA, injuriesB, injuriesCombined, historicalData.map(d => d.injuries));
             setIsRunning(false);
         };
 
@@ -780,13 +772,12 @@
             });
         };
 
-        const plotDistribution = (resultsA, resultsB, resultsCombined, historicalInjuries) => {
+        const plotDistribution = (injuriesA, injuriesB, injuriesCombined, historicalInjuries) => {
             const traces = [];
 
             if (historicalInjuries && historicalInjuries.length > 0) {
-                const maxHistorical = Math.max(...historicalInjuries);
                 traces.push({
-                    x: historicalInjuries.map(v => (v / maxHistorical) * 100),
+                    x: historicalInjuries,
                     type: 'histogram',
                     nbinsx: 15,
                     name: 'Historical (Observed)',
@@ -797,7 +788,7 @@
 
             if (activeActor === 'A' || activeActor === 'both') {
                 traces.push({
-                    x: resultsA,
+                    x: injuriesA,
                     type: 'histogram',
                     nbinsx: 30,
                     name: `${actorA.name} (Predicted)`,
@@ -807,7 +798,7 @@
 
             if (activeActor === 'B' || activeActor === 'both') {
                 traces.push({
-                    x: resultsB,
+                    x: injuriesB,
                     type: 'histogram',
                     nbinsx: 30,
                     name: `${actorB.name} (Predicted)`,
@@ -817,7 +808,7 @@
 
             if (activeActor === 'both') {
                 traces.push({
-                    x: resultsCombined,
+                    x: injuriesCombined,
                     type: 'histogram',
                     nbinsx: 30,
                     name: 'Combined (Max)',
@@ -826,8 +817,8 @@
             }
 
             const layout = {
-                title: { text: 'Injury Probability Distribution', font: { color: '#f8fafc' } },
-                xaxis: { title: 'Probability of Injury (%)', color: '#94a3b8', range: [0, 100] },
+                title: { text: 'Injury Count Distribution', font: { color: '#f8fafc' } },
+                xaxis: { title: 'Number of Injuries', color: '#94a3b8' },
                 yaxis: { title: 'Frequency', color: '#94a3b8' },
                 plot_bgcolor: '#0f172a',
                 paper_bgcolor: '#0f172a',
@@ -1005,7 +996,7 @@
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-emerald-400 font-bold">INJURY PROBABILITY (Next Time Step)</h2>
+                            <h2 className="text-emerald-400 font-bold">INJURY COUNT PREDICTION (Next Time Step)</h2>
                             <div className="flex gap-2">
                                 <button 
                                     onClick={() => setActiveActor('A')}
@@ -1034,7 +1025,7 @@
                                 <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
                                     <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 EMPIRICAL MARKOV CHAIN</h3>
                                     <p className="text-[10px] text-cyan-200">
-                                        Built from {historicalData.length} sequential observations. Probability states: Low (0-33%), Med (33-67%), High (67-100%). Adjusted for next-step behaviors.
+                                        Built from {historicalData.length} sequential observations. Injury count states: Low (0-33%), Med (33-67%), High (67-100%). Adjusted for next-step behaviors.
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1118,13 +1109,13 @@
                         )}
 
                         <p className="text-[10px] text-slate-500 mt-4 italic text-center">
-                            Yellow = Historical injury baseline from NLP data. Blue/Red/Green = Predicted injury probability for next time step.
+                            Yellow = Historical injury counts from NLP data. Blue/Red/Green = Predicted injury counts for next time step.
                         </p>
                     </div>
 
                     {simResults && (
                         <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
-                            <h2 className="text-orange-400 font-bold mb-4">📊 INJURY PROBABILITY STATISTICS</h2>
+                            <h2 className="text-orange-400 font-bold mb-4">📊 INJURY COUNT STATISTICS</h2>
                             <div className="space-y-4">
                                 <InjuryWireframe 
                                     injuries={simResults.injuriesA} 
