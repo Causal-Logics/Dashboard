@@ -102,7 +102,7 @@
             <div className="min-h-screen flex flex-col">
                 <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.0</h1>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v2.1</h1>
                         <p className="text-xs text-slate-400">NLP Extraction + Markov Chain Death Probability Prediction</p>
                     </div>
                     <nav className="flex gap-6">
@@ -122,8 +122,15 @@
 
     function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
         const [loading, setLoading] = useState(false);
-        const [incident, setIncident] = useState("Iran");
-        const [actors, setActors] = useState("Government, protestors");
+        const [incident, setIncident] = useState("Sanctuary city policy");
+        const [actors, setActors] = useState("ICE, Mayor");
+        const [numSources, setNumSources] = useState(10);
+        const [startDate, setStartDate] = useState(() => {
+            const date = new Date();
+            date.setDate(date.getDate() - 30);
+            return date.toISOString().split('T')[0];
+        });
+        const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
         const [progress, setProgress] = useState("");
 
         useEffect(() => {
@@ -133,6 +140,13 @@
             return () => clearTimeout(timer);
         }, [history]);
 
+        const generateRandomDate = (start, end) => {
+            const startTime = new Date(start).getTime();
+            const endTime = new Date(end).getTime();
+            const randomTime = startTime + Math.random() * (endTime - startTime);
+            return new Date(randomTime);
+        };
+
         const handleSearch = async () => {
             setLoading(true);
             setProgress("Initializing search...");
@@ -140,36 +154,77 @@
 
             const actorArray = actors.split(',').map(a => a.trim());
             const trueCasualties = Math.floor(Math.random() * 20) + 1;
-            const sources = ["Reuters", "AP", "New York Times", "BBC", "Washington Post"];
+            
+            // Expanded source pool
+            const allSources = [
+                "Reuters", "AP", "New York Times", "BBC", "Washington Post",
+                "CNN", "Fox News", "Al Jazeera", "The Guardian", "Bloomberg",
+                "Wall Street Journal", "USA Today", "NBC News", "ABC News",
+                "CBS News", "NPR", "Politico", "The Hill", "Axios", "ProPublica",
+                "Reuters International", "Agence France-Presse", "Deutsche Welle",
+                "TASS", "Xinhua", "Times of India", "The Telegraph", "Le Monde",
+                "El País", "Asahi Shimbun"
+            ];
             
             const templates = [
                 { text: "Institutional framework requires compliance with federal mandates...", scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 }, variance: 0.1 },
                 { text: "Resource constraints limit implementation capacity...", scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 }, variance: 0.15 },
                 { text: "Community identity drives resistance to proposed changes...", scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 }, variance: 0.25 },
                 { text: "Fear and uncertainty escalate tensions among residents...", scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 }, variance: 0.2 },
-                { text: "Court rulings shape boundaries of permissible action...", scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 }, variance: 0.1 }
+                { text: "Court rulings shape boundaries of permissible action...", scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 }, variance: 0.1 },
+                { text: "Budget allocations determine operational feasibility...", scores: { Structural: 4, Institutional: 2, Ideational: 0, Psychological: 0 }, variance: 0.12 },
+                { text: "Cultural values inform stakeholder perspectives and responses...", scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 1 }, variance: 0.22 },
+                { text: "Emotional responses amplify conflict dynamics...", scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 }, variance: 0.18 },
+                { text: "Regulatory compliance shapes implementation strategies...", scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 0 }, variance: 0.08 },
+                { text: "Infrastructure limitations constrain response capacity...", scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 }, variance: 0.14 }
             ];
 
-            for (let i = 0; i < Math.min(5, templates.length); i++) {
-                const template = templates[i];
-                setProgress(`Processing ${sources[i]} (${i + 1}/5)...`);
-                await new Promise(r => setTimeout(r, 500));
+            const sourcesToAnalyze = Math.min(numSources, 1000); // Cap at 1000 for performance
+
+            for (let i = 0; i < sourcesToAnalyze; i++) {
+                const sourceIndex = i % allSources.length;
+                const templateIndex = i % templates.length;
+                const template = templates[templateIndex];
+                
+                setProgress(`Processing ${allSources[sourceIndex]} (${i + 1}/${sourcesToAnalyze})...`);
+                
+                // Only add delay for first 10 sources, then batch process
+                if (i < 10) {
+                    await new Promise(r => setTimeout(r, 400));
+                } else if (i % 10 === 0) {
+                    await new Promise(r => setTimeout(r, 50));
+                }
 
                 const variance = template.variance || 0.15;
                 const reportedCas = Math.max(0, Math.round(trueCasualties * (1 + (Math.random() - 0.5) * 2 * variance)));
 
+                // Generate random date within range
+                const segmentDate = generateRandomDate(startDate, endDate);
+
                 const newSegment = {
-                    id: Date.now() + i,
-                    timestamp: new Date().toLocaleTimeString(),
+                    id: Date.now() + i + Math.random(),
+                    date: segmentDate,
+                    timestamp: segmentDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                    }),
+                    fullTimestamp: segmentDate.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }),
                     actor: actorArray[i % actorArray.length],
-                    source: sources[i],
+                    source: allSources[sourceIndex],
                     text: template.text,
                     scores: template.scores,
                     casualties: reportedCas,
                     trueCasualties: trueCasualties,
-                    isNew: true
+                    isNew: i < 10 // Only animate first 10
                 };
-                setHistory(prev => [newSegment, ...prev]);
+                setHistory(prev => [newSegment, ...prev].sort((a, b) => b.date - a.date));
             }
             
             setProgress("");
@@ -183,13 +238,76 @@
                     <div className="space-y-4">
                         <div>
                             <label className="text-xs text-slate-500 block mb-1">INCIDENT DESCRIPTION</label>
-                            <input value={incident} onChange={e => setIncident(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
+                            <input 
+                                value={incident} 
+                                onChange={e => setIncident(e.target.value)} 
+                                className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"
+                            />
                         </div>
                         <div>
                             <label className="text-xs text-slate-500 block mb-1">KEY ACTORS (comma separated)</label>
-                            <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"/>
+                            <input 
+                                value={actors} 
+                                onChange={e => setActors(e.target.value)} 
+                                className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"
+                            />
                         </div>
-                        <button onClick={handleSearch} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 p-3 rounded font-bold transition-all">
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">START DATE</label>
+                                <input 
+                                    type="date"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">END DATE</label>
+                                <input 
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">
+                                NUMBER OF SOURCES TO ANALYZE: <span className="text-emerald-400 font-bold">{numSources}</span>
+                            </label>
+                            <input 
+                                type="range"
+                                value={numSources}
+                                onChange={e => setNumSources(parseInt(e.target.value))}
+                                min="5"
+                                max="100"
+                                step="5"
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                <span>5</span>
+                                <span>50</span>
+                                <span>100</span>
+                            </div>
+                            <input 
+                                type="number"
+                                value={numSources}
+                                onChange={e => setNumSources(Math.max(1, Math.min(1000, parseInt(e.target.value) || 10)))}
+                                min="1"
+                                max="1000"
+                                className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs mt-2"
+                                placeholder="Custom (max 1,000)"
+                            />
+                        </div>
+
+                        <button 
+                            onClick={handleSearch} 
+                            disabled={loading} 
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 p-3 rounded font-bold transition-all"
+                        >
                             {loading ? "PROCESSING NLP..." : "START AUTOMATED RESEARCH"}
                         </button>
                         {progress && (
@@ -202,7 +320,7 @@
 
                 <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                     <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-emerald-400 font-bold">📈 LATEST ANALYZED SEGMENTS</h2>
+                        <h2 className="text-emerald-400 font-bold">📈 ANALYZED SEGMENTS</h2>
                         <div className="flex gap-2 items-center">
                             {history.length > 0 && (
                                 <>
@@ -221,7 +339,7 @@
                     </div>
                     {history.length > 0 && (
                         <div className="text-[10px] text-cyan-300 bg-cyan-900/10 border border-cyan-500/20 p-2 rounded mb-3">
-                            ℹ️ Multiple sources reporting same incident. Casualty counts show variation across sources, not separate incidents.
+                            ℹ️ Multiple sources reporting same incident across date range. Casualty counts show variation, not separate incidents.
                         </div>
                     )}
                     <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
@@ -241,7 +359,7 @@
                                                     {item.casualties} reported
                                                 </span>
                                             )}
-                                            <span className="text-[10px] text-slate-500">{item.timestamp}</span>
+                                            <span className="text-[10px] text-slate-500" title={item.fullTimestamp}>{item.timestamp}</span>
                                         </div>
                                     </div>
                                     <p className="text-xs italic text-slate-300 mb-3">"{item.text}"</p>
