@@ -1,202 +1,1161 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategic Analysis Suite v2.6 - Momentum & Causal Logic</title>
+    <title>Strategic Analysis & Casualty Prediction Suite</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; margin: 0; }
-        .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
-        .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
-        .axiom-card.new-segment { animation: slideIn 0.4s ease-out; border-color: #3b82f6; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
+
+```
+<style>
+    body { font-family: 'JetBrains Mono', monospace; background-color: #020617; color: #f8fafc; margin: 0; }
+    .tab-btn.active { border-bottom: 3px solid #10b981; color: #10b981; }
+    .axiom-card { background: #0f172a; border: 1px solid #334155; transition: all 0.3s; }
+    .axiom-card:hover { border-color: #10b981; transform: translateY(-2px); }
+    .axiom-card.new-segment { 
+        animation: slideIn 0.4s ease-out, highlight 2s ease-out;
+        border-color: #3b82f6;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes highlight {
+        0% { background-color: #1e3a8a; }
+        100% { background-color: #0f172a; }
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+</style>
+```
+
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, createElement: h } = React;
+```
+<script type="text/babel">
+    const { useState, useEffect, createElement: h } = React;
 
-        function App() {
-            const [activeTab, setActiveTab] = useState('research');
-            const [history, setHistory] = useState([]);
-            const [simData, setSimData] = useState(null);
+    const CAUSAL_AXIOMS = {
+        Structural: { keywords: ["resource", "constraint", "budget", "funding", "material", "physical"] },
+        Institutional: { keywords: ["law", "policy", "regulation", "mandate", "court", "authority"] },
+        Ideational: { keywords: ["culture", "identity", "belief", "value", "tradition", "symbol"] },
+        Psychological: { keywords: ["fear", "anger", "emotion", "bias", "instinct", "trauma"] }
+    };
 
-            const handleBridge = (aggregatedResults) => {
-                setSimData(aggregatedResults);
-                setActiveTab('simulation');
+    function App() {
+        const [activeTab, setActiveTab] = useState('research');
+        const [analysisHistory, setAnalysisHistory] = useState([]);
+        const [selectedActorProfile, setSelectedActorProfile] = useState(null);
+        const [actorNames, setActorNames] = useState({ actorA: 'Actor A', actorB: 'Actor B' });
+
+        const bridgeToSimulation = (actorName, scores, aggregatedData = null, casualtyData = null, actorAssignments = null, historicalData = null) => {
+            setSelectedActorProfile({
+                name: actorName,
+                structural: scores.Structural > 0,
+                institutional: scores.Institutional > 0,
+                ideational: scores.Ideational > 0,
+                psychological: scores.Psychological > 0,
+                positional: Math.random() > 0.5,
+                aggregatedScores: aggregatedData ? aggregatedData : scores,
+                isAggregated: aggregatedData !== null,
+                casualtyData: casualtyData,
+                actorAssignments: actorAssignments,
+                historicalData: historicalData
+            });
+            setActiveTab('simulation');
+        };
+
+        const sendAllToSimulator = (segments, actorList) => {
+            if (segments.length === 0) return;
+            
+            // Sort segments chronologically
+            const sortedSegments = [...segments].sort((a, b) => a.date - b.date);
+            
+            const aggregated = { Structural: 0, Institutional: 0, Ideational: 0, Psychological: 0 };
+            const actorSet = new Set();
+            const sourceSet = new Set();
+            const casualtyReports = [];
+            let trueCasualtyCount = null;
+
+            segments.forEach(segment => {
+                Object.keys(aggregated).forEach(key => { aggregated[key] += segment.scores[key] || 0; });
+                actorSet.add(segment.actor);
+                sourceSet.add(segment.source);
+                if (segment.casualties !== undefined) casualtyReports.push(segment.casualties);
+                if (segment.trueCasualties !== undefined && trueCasualtyCount === null) trueCasualtyCount = segment.trueCasualties;
+            });
+
+            const avgCas = casualtyReports.length > 0 ? casualtyReports.reduce((a, b) => a + b, 0) / casualtyReports.length : 0;
+            const casualtyData = {
+                average: parseFloat(avgCas.toFixed(1)),
+                min: casualtyReports.length > 0 ? Math.min(...casualtyReports) : 0,
+                max: casualtyReports.length > 0 ? Math.max(...casualtyReports) : 0,
+                true: trueCasualtyCount,
+                segments: segments.length
             };
 
-            return (
-                <div className="min-h-screen flex flex-col">
-                    <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
-                        <div>
-                            <h1 className="text-xl font-bold text-emerald-400 uppercase tracking-tighter">Strategic Analysis Suite v2.6</h1>
-                            <p className="text-[10px] text-slate-500 font-bold">SENTIMENT MOMENTUM // TEMPORAL CAUSAL LOGIC</p>
-                        </div>
-                        <nav className="flex gap-6">
-                            <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold text-xs ${activeTab === 'research' ? 'active' : 'text-slate-500'}`}>1. NLP INGESTION</button>
-                            <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold text-xs ${activeTab === 'simulation' ? 'active' : 'text-slate-500'}`}>2. MOMENTUM SIM</button>
-                        </nav>
-                    </header>
-                    <main className="flex-1 p-6">
-                        {activeTab === 'research' ? 
-                            <ResearchTab onBridge={handleBridge} history={history} setHistory={setHistory} /> : 
-                            <SimulationTab inputData={simData} />
-                        }
-                    </main>
-                </div>
-            );
-        }
-
-        function ResearchTab({ onBridge, history, setHistory }) {
-            const [loading, setLoading] = useState(false);
-            const [actors, setActors] = useState("State Actor, Insurgent");
-
-            const runNLP = async () => {
-                setLoading(true);
-                const actorArray = actors.split(',').map(a => a.trim());
-                for (let i = 0; i < 8; i++) {
-                    await new Promise(r => setTimeout(r, 150));
-                    const newEntry = {
-                        id: Date.now() + i,
-                        timestamp: new Date(Date.now() - (8-i) * 86400000).toLocaleDateString(),
-                        actor: actorArray[i % 2],
-                        scores: { 
-                            Structural: Math.floor(Math.random() * 5), 
-                            Institutional: Math.floor(Math.random() * 5),
-                            Ideational: Math.floor(Math.random() * 5),
-                            Psychological: Math.floor(Math.random() * 5)
-                        },
-                        casualties: Math.floor(Math.random() * 12),
-                        isNew: true
-                    };
-                    setHistory(prev => [newEntry, ...prev]);
-                }
-                setLoading(false);
+            const actors = actorList.split(',').map(a => a.trim()).filter(a => a.length > 0);
+            const actorAssignments = {
+                actorA: actors[0] || 'Actor A',
+                actorB: actors[1] || 'Actor B'
             };
 
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold text-xs mb-4">INGESTION</h2>
-                        <input value={actors} onChange={e => setActors(e.target.value)} className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-xs mb-4" />
-                        <button onClick={runNLP} className="w-full bg-emerald-600 p-3 rounded font-bold text-xs uppercase">Run Analysis</button>
-                        {history.length > 0 && <button onClick={() => onBridge({ history, names: actors.split(',') })} className="w-full mt-4 bg-blue-600 p-3 rounded font-bold text-xs uppercase">Bridge to Markov</button>}
+            // Prepare historical time series data
+            const historicalData = sortedSegments.map(seg => ({
+                date: seg.date,
+                timestamp: seg.timestamp,
+                actor: seg.actor,
+                injuries: seg.casualties,
+                trueInjuries: seg.trueCasualties,
+                behaviors: {
+                    structural: seg.scores.Structural > 0,
+                    institutional: seg.scores.Institutional > 0,
+                    ideational: seg.scores.Ideational > 0,
+                    psychological: seg.scores.Psychological > 0
+                },
+                scores: seg.scores
+            }));
+
+            setActorNames(actorAssignments);
+            bridgeToSimulation(`Aggregated Analysis`, aggregated, aggregated, casualtyData, actorAssignments, historicalData);
+        };
+
+        return (
+            <div className="min-h-screen flex flex-col">
+                <header className="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-xl font-bold text-emerald-400">STRATEGIC ANALYSIS SUITE v3.0</h1>
+                        <p className="text-xs text-slate-400">Data-Driven Markov Chains from Sequential NLP Analysis</p>
                     </div>
-                    <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800 overflow-y-auto max-h-[500px] custom-scroll">
-                        {history.map(item => (
-                            <div key={item.id} className="axiom-card p-2 mb-2 rounded flex justify-between text-[10px]">
-                                <span className="text-blue-400 font-bold">{item.timestamp}</span>
-                                <span className="font-bold">{item.actor}</span>
-                                <span>P:{item.scores.Psychological} | I:{item.scores.Ideational} | S:{item.scores.Structural}</span>
-                                <span className="text-red-400">Injuries: {item.casualties}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-
-        function SimulationTab({ inputData }) {
-            const [results, setResults] = useState(null);
-
-            const runSimulation = () => {
-                const names = inputData.names.map(n => n.trim());
-                const latestA = inputData.history.find(h => h.actor === names[0]);
-                const latestB = inputData.history.find(h => h.actor === names[1]);
-                
-                const iterations = 3000;
-                const simResults = { A: [], B: [], InjuryCI: [] };
-
-                const buildMomentumMatrix = (scores) => {
-                    let matrix = [[0.7, 0.2, 0.1], [0.3, 0.4, 0.3], [0.1, 0.3, 0.6]];
-                    // Sentiment Momentum logic: Psychological scores create "slip" toward escalation
-                    if (scores.Psychological > 3) { matrix[0][2] += 0.2; matrix[0][0] -= 0.2; }
-                    if (scores.Ideational > 3) { matrix[1][2] += 0.2; matrix[1][1] -= 0.2; }
-                    return matrix.map(r => { const s = r.reduce((a,b)=>a+b); return r.map(v => v/s); });
-                };
-
-                const matrixA = buildMomentumMatrix(latestA.scores);
-                const matrixB = buildMomentumMatrix(latestB.scores);
-
-                for (let i = 0; i < iterations; i++) {
-                    let sA = latestA.casualties > 8 ? 2 : 0;
-                    let sB = latestB.casualties > 8 ? 2 : 0;
-
-                    for (let t = 0; t < 5; t++) {
-                        sA = transition(sA, matrixA);
-                        sB = transition(sB, matrixB);
+                    <nav className="flex gap-6">
+                        <button onClick={() => setActiveTab('research')} className={`tab-btn pb-2 font-bold ${activeTab === 'research' ? 'active' : ''}`}>1. RESEARCH & NLP</button>
+                        <button onClick={() => setActiveTab('simulation')} className={`tab-btn pb-2 font-bold ${activeTab === 'simulation' ? 'active' : ''}`}>2. PREDICTION</button>
+                    </nav>
+                </header>
+                <main className="flex-1 p-6">
+                    {activeTab === 'research' ? 
+                        <ResearchModule onActorExport={bridgeToSimulation} onSendAll={sendAllToSimulator} history={analysisHistory} setHistory={setAnalysisHistory} /> : 
+                        <SimulationModule importedProfile={selectedActorProfile} actorNames={actorNames} />
                     }
-                    const pA = (sA + 1) / 3 * Math.random();
-                    const pB = (sB + 1) / 3 * Math.random();
-                    simResults.A.push(pA);
-                    simResults.B.push(pB);
-                    simResults.InjuryCI.push(Math.round(Math.max(pA, pB) * 120));
+                </main>
+            </div>
+        );
+    }
+
+    function ResearchModule({ onActorExport, onSendAll, history, setHistory }) {
+        const [loading, setLoading] = useState(false);
+        const [incident, setIncident] = useState("Sanctuary city policy");
+        const [actors, setActors] = useState("ICE, Mayor");
+        const [numSources, setNumSources] = useState(10);
+        const [startDate, setStartDate] = useState(() => {
+            const date = new Date();
+            date.setDate(date.getDate() - 30);
+            return date.toISOString().split('T')[0];
+        });
+        const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+        const [progress, setProgress] = useState("");
+
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                setHistory(prev => prev.map(item => ({ ...item, isNew: false })));
+            }, 2000);
+            return () => clearTimeout(timer);
+        }, [history]);
+
+        const generateRandomDate = (start, end) => {
+            const startTime = new Date(start).getTime();
+            const endTime = new Date(end).getTime();
+            const randomTime = startTime + Math.random() * (endTime - startTime);
+            return new Date(randomTime);
+        };
+
+        const downloadCSV = () => {
+            if (history.length === 0) return;
+
+            const headers = [
+                'Date',
+                'Source',
+                'Actor',
+                'Structural',
+                'Institutional',
+                'Ideational',
+                'Psychological',
+                'Injuries_Reported',
+                'Actual_Injuries',
+                'Text'
+            ];
+
+            const rows = history.map(item => [
+                item.fullTimestamp || item.timestamp,
+                item.source,
+                item.actor,
+                item.scores.Structural > 0 ? 1 : 0,
+                item.scores.Institutional > 0 ? 1 : 0,
+                item.scores.Ideational > 0 ? 1 : 0,
+                item.scores.Psychological > 0 ? 1 : 0,
+                item.casualties,
+                item.trueCasualties,
+                `"${item.text.replace(/"/g, '""')}"`
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `nlp_analysis_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        const handleSearch = async () => {
+            setLoading(true);
+            setProgress("Initializing search...");
+            await new Promise(r => setTimeout(r, 300));
+
+            const actorArray = actors.split(',').map(a => a.trim());
+            const trueCasualties = Math.floor(Math.random() * 20) + 1;
+            
+            const allSources = [
+                "Reuters", "AP", "New York Times", "BBC", "Washington Post",
+                "CNN", "Fox News", "Al Jazeera", "The Guardian", "Bloomberg",
+                "Wall Street Journal", "USA Today", "NBC News", "ABC News",
+                "CBS News", "NPR", "Politico", "The Hill", "Axios", "ProPublica",
+                "Reuters International", "Agence France-Presse", "Deutsche Welle",
+                "TASS", "Xinhua", "Times of India", "The Telegraph", "Le Monde",
+                "El País", "Asahi Shimbun"
+            ];
+            
+            const templates = [
+                { text: "Institutional framework requires compliance with federal mandates...", scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 1 }, variance: 0.1 },
+                { text: "Resource constraints limit implementation capacity...", scores: { Structural: 4, Institutional: 1, Ideational: 0, Psychological: 0 }, variance: 0.15 },
+                { text: "Community identity drives resistance to proposed changes...", scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 2 }, variance: 0.25 },
+                { text: "Fear and uncertainty escalate tensions among residents...", scores: { Structural: 0, Institutional: 1, Ideational: 1, Psychological: 4 }, variance: 0.2 },
+                { text: "Court rulings shape boundaries of permissible action...", scores: { Structural: 0, Institutional: 4, Ideational: 0, Psychological: 0 }, variance: 0.1 },
+                { text: "Budget allocations determine operational feasibility...", scores: { Structural: 4, Institutional: 2, Ideational: 0, Psychological: 0 }, variance: 0.12 },
+                { text: "Cultural values inform stakeholder perspectives and responses...", scores: { Structural: 0, Institutional: 0, Ideational: 4, Psychological: 1 }, variance: 0.22 },
+                { text: "Emotional responses amplify conflict dynamics...", scores: { Structural: 0, Institutional: 0, Ideational: 1, Psychological: 4 }, variance: 0.18 },
+                { text: "Regulatory compliance shapes implementation strategies...", scores: { Structural: 1, Institutional: 4, Ideational: 0, Psychological: 0 }, variance: 0.08 },
+                { text: "Infrastructure limitations constrain response capacity...", scores: { Structural: 4, Institutional: 0, Ideational: 0, Psychological: 1 }, variance: 0.14 }
+            ];
+
+            const sourcesToAnalyze = Math.min(numSources, 1000);
+
+            for (let i = 0; i < sourcesToAnalyze; i++) {
+                const sourceIndex = i % allSources.length;
+                const templateIndex = i % templates.length;
+                const template = templates[templateIndex];
+                
+                setProgress(`Processing ${allSources[sourceIndex]} (${i + 1}/${sourcesToAnalyze})...`);
+                
+                if (i < 10) {
+                    await new Promise(r => setTimeout(r, 400));
+                } else if (i % 10 === 0) {
+                    await new Promise(r => setTimeout(r, 50));
                 }
-                setResults(simResults);
-                plot(simResults, names);
-            };
 
-            const transition = (s, m) => {
-                const r = Math.random();
-                let c = 0;
-                for (let i=0; i<3; i++) { c += m[s][i]; if (r < c) return i; }
-                return s;
-            };
+                const variance = template.variance || 0.15;
+                const reportedCas = Math.max(0, Math.round(trueCasualties * (1 + (Math.random() - 0.5) * 2 * variance)));
+                const segmentDate = generateRandomDate(startDate, endDate);
 
-            const plot = (data, names) => {
-                const traces = [
-                    { x: data.A, type: 'histogram', name: names[0], marker: {color: '#3b82f6', opacity: 0.6} },
-                    { x: data.B, type: 'histogram', name: names[1], marker: {color: '#ef4444', opacity: 0.6} }
-                ];
-                Plotly.newPlot('chart', traces, { 
-                    barmode: 'overlay', paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-                    font: { color: '#94a3b8', size: 10 },
-                    xaxis: { title: 'Escalation Probability' }
-                });
-            };
+                const newSegment = {
+                    id: Date.now() + i + Math.random(),
+                    date: segmentDate,
+                    timestamp: segmentDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                    }),
+                    fullTimestamp: segmentDate.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }),
+                    actor: actorArray[i % actorArray.length],
+                    source: allSources[sourceIndex],
+                    text: template.text,
+                    scores: template.scores,
+                    casualties: reportedCas,
+                    trueCasualties: trueCasualties,
+                    isNew: i < 10
+                };
+                setHistory(prev => [newSegment, ...prev].sort((a, b) => b.date - a.date));
+            }
+            
+            setProgress("");
+            setLoading(false);
+        };
 
-            useEffect(() => { if (inputData) runSimulation(); }, [inputData]);
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <h2 className="text-emerald-400 font-bold mb-4 flex items-center gap-2"><span>🔍</span> INCIDENT PARAMETERS</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">INCIDENT DESCRIPTION</label>
+                            <input 
+                                value={incident} 
+                                onChange={e => setIncident(e.target.value)} 
+                                className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">KEY ACTORS (comma separated)</label>
+                            <input 
+                                value={actors} 
+                                onChange={e => setActors(e.target.value)} 
+                                className="w-full bg-slate-800 border border-slate-700 p-3 rounded text-sm"
+                            />
+                            <p className="text-[10px] text-cyan-400 mt-1">First actor → Actor A, Second → Actor B</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">START DATE</label>
+                                <input 
+                                    type="date"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-slate-500 block mb-1">END DATE</label>
+                                <input 
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs"
+                                />
+                            </div>
+                        </div>
 
-            if (!inputData) return <div className="text-center p-20 text-slate-500">Wait for data...</div>;
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">
+                                NUMBER OF SOURCES TO ANALYZE: <span className="text-emerald-400 font-bold">{numSources}</span>
+                            </label>
+                            <input 
+                                type="range"
+                                value={numSources}
+                                onChange={e => setNumSources(parseInt(e.target.value))}
+                                min="5"
+                                max="100"
+                                step="5"
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                <span>5</span>
+                                <span>50</span>
+                                <span>100</span>
+                            </div>
+                            <input 
+                                type="number"
+                                value={numSources}
+                                onChange={e => setNumSources(Math.max(1, Math.min(1000, parseInt(e.target.value) || 10)))}
+                                min="1"
+                                max="1000"
+                                className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-xs mt-2"
+                                placeholder="Custom (max 1,000)"
+                            />
+                        </div>
 
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <h2 className="text-emerald-400 font-bold text-xs uppercase mb-4">Momentum Prediction</h2>
-                        {results && (
-                            <div className="space-y-4">
-                                <div className="p-4 bg-slate-800 rounded border border-blue-500/30">
-                                    <p className="text-[10px] text-blue-300 font-bold uppercase">Predicted Injury Range (Next Step)</p>
-                                    <p className="text-3xl font-bold">
-                                        {Math.min(...results.InjuryCI)} - {Math.max(...results.InjuryCI)}
-                                    </p>
-                                </div>
-                                <div className="text-[9px] text-slate-500 leading-relaxed italic">
-                                    *Analysis uses Monte Carlo Markov Chain simulation adjusted for Sentiment Momentum detected in current intelligence corpus.
-                                </div>
+                        <button 
+                            onClick={handleSearch} 
+                            disabled={loading} 
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 p-3 rounded font-bold transition-all"
+                        >
+                            {loading ? "PROCESSING NLP..." : "START AUTOMATED RESEARCH"}
+                        </button>
+                        {progress && (
+                            <div className="bg-blue-900/20 border border-blue-500/50 text-blue-400 text-xs p-3 rounded flex items-center gap-2">
+                                <span className="animate-pulse">●</span> {progress}
                             </div>
                         )}
                     </div>
-                    <div className="lg:col-span-2 bg-slate-900 p-6 rounded-xl border border-slate-800">
-                        <div id="chart" className="w-full h-[400px]"></div>
+                </section>
+
+                <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <div className="flex justify-between items-center mb-2">
+                        <h2 className="text-emerald-400 font-bold">📈 ANALYZED SEGMENTS</h2>
+                        <div className="flex gap-2 items-center">
+                            {history.length > 0 && (
+                                <>
+                                    <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded border border-emerald-500/50">
+                                        {history.length} segments
+                                    </span>
+                                    <button 
+                                        onClick={downloadCSV}
+                                        className="text-[10px] bg-purple-900/30 text-purple-400 border border-purple-500/50 px-3 py-1 rounded hover:bg-purple-500 hover:text-white transition-all font-bold"
+                                    >
+                                        📥 CSV
+                                    </button>
+                                    <button onClick={() => onSendAll(history, actors)} className="text-[10px] bg-blue-900/30 text-blue-400 border border-blue-500/50 px-3 py-1 rounded hover:bg-blue-500 hover:text-white transition-all font-bold">
+                                        SEND ALL →
+                                    </button>
+                                    <button onClick={() => setHistory([])} className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all">
+                                        CLEAR
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    {history.length > 0 && (
+                        <div className="text-[10px] text-cyan-300 bg-cyan-900/10 border border-cyan-500/20 p-2 rounded mb-3">
+                            ℹ️ Time-sequential data. Markov chains built from actual state transitions in historical data.
+                        </div>
+                    )}
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scroll">
+                        {history.length === 0 ? (
+                            <p className="text-sm text-slate-500 italic text-center py-8">No segments analyzed yet. Start automated research to begin.</p>
+                        ) : (
+                            history.map(item => (
+                                <div key={item.id} className={`axiom-card p-4 rounded-lg ${item.isNew ? 'new-segment' : ''}`}>
+                                    <div className="flex justify-between mb-2">
+                                        <div>
+                                            <span className="text-xs font-bold text-blue-400 uppercase">{item.actor}</span>
+                                            {item.source && <span className="text-[10px] text-slate-500 ml-2">via {item.source}</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {item.casualties !== undefined && (
+                                                <span className="text-[10px] bg-red-900/30 text-red-400 border border-red-500/50 px-2 py-1 rounded font-bold" title={`Reported: ${item.casualties}${item.trueCasualties ? ' | Actual: ' + item.trueCasualties : ''}`}>
+                                                    {item.casualties} injuries
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] text-slate-500" title={item.fullTimestamp}>{item.timestamp}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs italic text-slate-300 mb-3">"{item.text}"</p>
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex gap-2 flex-wrap">
+                                            {Object.entries(item.scores).map(([k, v]) => v > 0 && (
+                                                <span key={k} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                                                    {k}: {v}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </section>
+            </div>
+        );
+    }
+
+    function InjuryWireframe({ injuries, actorName, color }) {
+        const sorted = [...injuries].sort((a, b) => a - b);
+        const mean = Math.round(injuries.reduce((a, b) => a + b, 0) / injuries.length);
+        const median = Math.round(sorted[Math.floor(sorted.length / 2)]);
+        const ci_lower = Math.round(sorted[Math.floor(sorted.length * 0.025)]);
+        const ci_upper = Math.round(sorted[Math.floor(sorted.length * 0.975)]);
+        
+        const maxVal = Math.max(...sorted);
+        const scale = 100 / maxVal;
+
+        return (
+            <div className="p-4 rounded border" style={{ borderColor: color + '40', backgroundColor: color + '10' }}>
+                <h4 className="text-xs font-bold mb-3" style={{ color }}>{actorName}</h4>
+                
+                <div className="relative h-24 mb-4 bg-slate-900/50 rounded">
+                    <div 
+                        className="absolute top-1/2 transform -translate-y-1/2 h-12 rounded"
+                        style={{
+                            left: `${ci_lower * scale}%`,
+                            width: `${(ci_upper - ci_lower) * scale}%`,
+                            backgroundColor: color + '20',
+                            border: `1px solid ${color}40`
+                        }}
+                    />
+                    
+                    <div 
+                        className="absolute top-0 bottom-0 w-0.5"
+                        style={{
+                            left: `${median * scale}%`,
+                            backgroundColor: color,
+                            boxShadow: `0 0 4px ${color}`
+                        }}
+                    />
+                    
+                    <div 
+                        className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 rounded-full border-2"
+                        style={{
+                            left: `${mean * scale}%`,
+                            backgroundColor: color,
+                            borderColor: '#0f172a',
+                            boxShadow: `0 0 6px ${color}`
+                        }}
+                    />
+                    
+                    <div className="absolute -bottom-5 left-0 text-[9px] text-slate-500">0</div>
+                    <div className="absolute -bottom-5 right-0 text-[9px] text-slate-500">{maxVal}</div>
+                </div>
+
+                <div className="space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-400">Mean (●):</span>
+                        <span className="font-bold" style={{ color }}>{mean}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-400">Median (|):</span>
+                        <span className="font-bold" style={{ color }}>{median}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-400">95% CI:</span>
+                        <span className="font-bold" style={{ color }}>{ci_lower} - {ci_upper}</span>
                     </div>
                 </div>
-            );
-        }
+            </div>
+        );
+    }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(h(App));
-    </script>
+    function SimulationModule({ importedProfile, actorNames }) {
+        const [actorA, setActorA] = useState({
+            name: actorNames?.actorA || 'Actor A',
+            behaviors: { structural: false, ideational: false, institutional: false, psychological: false, positional: false }
+        });
+        const [actorB, setActorB] = useState({
+            name: actorNames?.actorB || 'Actor B',
+            behaviors: { structural: false, ideational: false, institutional: false, psychological: false, positional: false }
+        });
+        const [simResults, setSimResults] = useState(null);
+        const [activeActor, setActiveActor] = useState('both');
+        const [casualtyData, setCasualtyData] = useState(null);
+        const [historicalData, setHistoricalData] = useState(null);
+        const [iterations, setIterations] = useState(1000);
+        const [isRunning, setIsRunning] = useState(false);
+        const [empiricalMatrix, setEmpiricalMatrix] = useState(null);
+
+        useEffect(() => {
+            if (importedProfile) {
+                if (importedProfile.casualtyData) setCasualtyData(importedProfile.casualtyData);
+                if (importedProfile.historicalData) {
+                    setHistoricalData(importedProfile.historicalData);
+                }
+                
+                if (importedProfile.actorAssignments) {
+                    setActorA(prev => ({
+                        ...prev,
+                        name: importedProfile.actorAssignments.actorA
+                    }));
+                    setActorB(prev => ({
+                        ...prev,
+                        name: importedProfile.actorAssignments.actorB
+                    }));
+                }
+            }
+        }, [importedProfile]);
+
+        useEffect(() => {
+            if (actorNames) {
+                setActorA(prev => ({ ...prev, name: actorNames.actorA }));
+                setActorB(prev => ({ ...prev, name: actorNames.actorB }));
+            }
+        }, [actorNames]);
+
+        // Re-run simulation when behaviors change or historical data loads
+        useEffect(() => {
+            if (historicalData && historicalData.length > 0) {
+                runSimulation();
+            }
+        }, [actorA.behaviors, actorB.behaviors, historicalData]);
+
+        useEffect(() => {
+            if (simResults) {
+                plotDistribution(simResults.actorA, simResults.actorB, simResults.combined, simResults.historicalInjuries);
+            }
+        }, [activeActor]);
+
+        const runSimulation = async () => {
+            if (!historicalData || historicalData.length === 0) return;
+            
+            setIsRunning(true);
+            if (iterations > 5000) await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Build empirical transition matrix from historical data
+            const empiricalTransitions = buildEmpiricalMatrix(historicalData);
+            setEmpiricalMatrix(empiricalTransitions);
+
+            // Separate data by actor
+            const actorAData = historicalData.filter(d => d.actor === actorA.name);
+            const actorBData = historicalData.filter(d => d.actor === actorB.name);
+
+            // Build transition matrices with historical baseline + next-step adjustments
+            const matrixA = adjustMatrixForNextStep(empiricalTransitions.matrixA, actorA.behaviors);
+            const matrixB = adjustMatrixForNextStep(empiricalTransitions.matrixB, actorB.behaviors);
+
+            const resultsA = [];
+            const resultsB = [];
+            const resultsCombined = [];
+            const injuriesA = [];
+            const injuriesB = [];
+            const injuriesCombined = [];
+
+            const calculateSteadyState = (matrix) => {
+                let state = [1/3, 1/3, 1/3];
+                for (let i = 0; i < 100; i++) {
+                    const newState = [0, 0, 0];
+                    for (let j = 0; j < 3; j++) {
+                        for (let k = 0; k < 3; k++) {
+                            newState[j] += state[k] * matrix[k][j];
+                        }
+                    }
+                    state = newState;
+                }
+                return state;
+            };
+
+            const runMarkovChain = (transitionMatrix, steps, startState = 0) => {
+                const trajectory = [];
+                let currentState = startState;
+                
+                for (let i = 0; i < steps; i++) {
+                    trajectory.push(currentState);
+                    const rand = Math.random();
+                    const probs = transitionMatrix[currentState];
+                    let cumProb = 0;
+                    
+                    for (let nextState = 0; nextState < 3; nextState++) {
+                        cumProb += probs[nextState];
+                        if (rand < cumProb) {
+                            currentState = nextState;
+                            break;
+                        }
+                    }
+                }
+                return trajectory;
+            };
+
+            const stateToInjuries = (state, baseInjuries) => {
+                // Maps probability state to injury count
+                // Low (0): 0-33% of max, Med (1): 33-67%, High (2): 67-100%
+                const ranges = [
+                    [0, baseInjuries * 0.33],
+                    [baseInjuries * 0.33, baseInjuries * 0.67],
+                    [baseInjuries * 0.67, baseInjuries]
+                ];
+                const [min, max] = ranges[state];
+                return Math.round(min + Math.random() * (max - min));
+            };
+
+            const steadyStateA = calculateSteadyState(matrixA);
+            const steadyStateB = calculateSteadyState(matrixB);
+
+            // Get baseline injury levels from historical data
+            const maxInjuryA = actorAData.length > 0 ? Math.max(...actorAData.map(d => d.injuries)) : 20;
+            const maxInjuryB = actorBData.length > 0 ? Math.max(...actorBData.map(d => d.injuries)) : 20;
+
+            // Determine starting state from most recent historical data
+            const lastStateA = empiricalTransitions.lastStateA;
+            const lastStateB = empiricalTransitions.lastStateB;
+
+            for (let i = 0; i < iterations; i++) {
+                // Start from last observed state
+                const trajectoryA = runMarkovChain(matrixA, 10, lastStateA);
+                const trajectoryB = runMarkovChain(matrixB, 10, lastStateB);
+                
+                const finalStateA = trajectoryA[trajectoryA.length - 1];
+                const finalStateB = trajectoryB[trajectoryB.length - 1];
+                
+                const injuryA = stateToInjuries(finalStateA, maxInjuryA);
+                const injuryB = stateToInjuries(finalStateB, maxInjuryB);
+                
+                injuriesA.push(injuryA);
+                injuriesB.push(injuryB);
+                injuriesCombined.push(Math.max(injuryA, injuryB));
+            }
+
+            // Convert injuries to percentages for injury probability
+            resultsA.push(...injuriesA.map(inj => (inj / maxInjuryA) * 100));
+            resultsB.push(...injuriesB.map(inj => (inj / maxInjuryB) * 100));
+            resultsCombined.push(...injuriesCombined.map(inj => (Math.max(inj / maxInjuryA, inj / maxInjuryB)) * 100));
+
+            setSimResults({
+                actorA: resultsA,
+                actorB: resultsB,
+                combined: resultsCombined,
+                injuriesA: injuriesA,
+                injuriesB: injuriesB,
+                injuriesCombined: injuriesCombined,
+                transitionMatrixA: matrixA,
+                transitionMatrixB: matrixB,
+                steadyStateA: steadyStateA,
+                steadyStateB: steadyStateB,
+                iterations: iterations,
+                historicalInjuries: historicalData.map(d => d.injuries),
+                empiricalTransitions: empiricalTransitions
+            });
+            
+            plotDistribution(resultsA, resultsB, resultsCombined, historicalData.map(d => d.injuries));
+            setIsRunning(false);
+        };
+
+        const buildEmpiricalMatrix = (data) => {
+            const maxInjury = Math.max(...data.map(d => d.injuries));
+            const getState = (injuries) => {
+                const pct = injuries / maxInjury;
+                if (pct < 0.33) return 0;
+                if (pct < 0.67) return 1;
+                return 2;
+            };
+
+            const actorAData = data.filter(d => d.actor === actorA.name);
+            const actorBData = data.filter(d => d.actor === actorB.name);
+
+            const transitionsA = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+            for (let i = 0; i < actorAData.length - 1; i++) {
+                const currentState = getState(actorAData[i].injuries);
+                const nextState = getState(actorAData[i + 1].injuries);
+                transitionsA[currentState][nextState]++;
+            }
+
+            const transitionsB = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+            for (let i = 0; i < actorBData.length - 1; i++) {
+                const currentState = getState(actorBData[i].injuries);
+                const nextState = getState(actorBData[i + 1].injuries);
+                transitionsB[currentState][nextState]++;
+            }
+
+            const normalizeMatrix = (transitions) => {
+                return transitions.map(row => {
+                    const sum = row.reduce((a, b) => a + b, 0);
+                    if (sum === 0) return [0.7, 0.25, 0.05];
+                    return row.map(val => val / sum);
+                });
+            };
+
+            return {
+                matrixA: normalizeMatrix(transitionsA),
+                matrixB: normalizeMatrix(transitionsB),
+                lastStateA: actorAData.length > 0 ? getState(actorAData[actorAData.length - 1].injuries) : 0,
+                lastStateB: actorBData.length > 0 ? getState(actorBData[actorBData.length - 1].injuries) : 0,
+                transitionsA: transitionsA,
+                transitionsB: transitionsB
+            };
+        };
+
+        const adjustMatrixForNextStep = (baseMatrix, nextStepBehaviors) => {
+            let matrix = baseMatrix.map(row => [...row]);
+
+            if (nextStepBehaviors.ideational) {
+                matrix[0][2] += 0.15; matrix[1][2] += 0.20; matrix[2][2] += 0.15;
+                matrix[0][0] -= 0.15; matrix[1][1] -= 0.15; matrix[2][1] -= 0.15;
+            }
+            if (nextStepBehaviors.psychological) {
+                matrix[1][2] += 0.12; matrix[0][1] += 0.10;
+                matrix[1][1] -= 0.12; matrix[0][0] -= 0.10;
+            }
+            if (nextStepBehaviors.structural) {
+                matrix[0][1] += 0.08; matrix[1][2] += 0.08;
+                matrix[0][0] -= 0.08; matrix[1][1] -= 0.08;
+            }
+            if (nextStepBehaviors.institutional) {
+                matrix[0][0] += 0.10; matrix[1][0] += 0.10; matrix[2][0] += 0.15;
+                matrix[0][1] -= 0.05; matrix[1][2] -= 0.10; matrix[2][2] -= 0.15;
+            }
+            if (nextStepBehaviors.positional) {
+                matrix[0][2] += 0.25; matrix[1][2] += 0.25; matrix[2][2] += 0.20;
+                matrix[0][0] -= 0.15; matrix[0][1] -= 0.10; matrix[1][1] -= 0.20; matrix[2][1] -= 0.20;
+            }
+
+            return matrix.map(row => {
+                const sum = row.reduce((a, b) => a + b, 0);
+                return row.map(val => Math.max(0, val / sum));
+            });
+        };
+
+        const plotDistribution = (resultsA, resultsB, resultsCombined, historicalInjuries) => {
+            const traces = [];
+
+            if (historicalInjuries && historicalInjuries.length > 0) {
+                const maxHistorical = Math.max(...historicalInjuries);
+                traces.push({
+                    x: historicalInjuries.map(v => (v / maxHistorical) * 100),
+                    type: 'histogram',
+                    nbinsx: 15,
+                    name: 'Historical (Observed)',
+                    marker: { color: '#fbbf24', opacity: 0.5 },
+                    opacity: 0.5
+                });
+            }
+
+            if (activeActor === 'A' || activeActor === 'both') {
+                traces.push({
+                    x: resultsA,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: `${actorA.name} (Predicted)`,
+                    marker: { color: '#3b82f6', opacity: 0.6 }
+                });
+            }
+
+            if (activeActor === 'B' || activeActor === 'both') {
+                traces.push({
+                    x: resultsB,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: `${actorB.name} (Predicted)`,
+                    marker: { color: '#ef4444', opacity: 0.6 }
+                });
+            }
+
+            if (activeActor === 'both') {
+                traces.push({
+                    x: resultsCombined,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    name: 'Combined (Max)',
+                    marker: { color: '#10b981', opacity: 0.7 }
+                });
+            }
+
+            const layout = {
+                title: { text: 'Injury Probability Distribution', font: { color: '#f8fafc' } },
+                xaxis: { title: 'Probability of Injury (%)', color: '#94a3b8', range: [0, 100] },
+                yaxis: { title: 'Frequency', color: '#94a3b8' },
+                plot_bgcolor: '#0f172a',
+                paper_bgcolor: '#0f172a',
+                font: { color: '#f8fafc' },
+                barmode: 'overlay',
+                showlegend: true,
+                legend: { x: 0.55, y: 0.95, bgcolor: '#1e293b', bordercolor: '#334155', borderwidth: 1 }
+            };
+
+            Plotly.newPlot('chart', traces, layout, { responsive: true });
+        };
+
+        const avgInjuryA = simResults ? Math.round(simResults.injuriesA.reduce((a, b) => a + b, 0) / simResults.injuriesA.length) : '---';
+        const avgInjuryB = simResults ? Math.round(simResults.injuriesB.reduce((a, b) => a + b, 0) / simResults.injuriesB.length) : '---';
+        const avgInjuryCombined = simResults ? Math.round(simResults.injuriesCombined.reduce((a, b) => a + b, 0) / simResults.injuriesCombined.length) : '---';
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 space-y-6">
+                    {historicalData && historicalData.length > 0 && (
+                        <div className="bg-slate-900 p-6 rounded-xl border border-yellow-500/50">
+                            <h2 className="text-yellow-400 font-bold mb-3">📊 HISTORICAL DATA</h2>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Time Points:</span>
+                                    <span className="text-white font-bold">{historicalData.length}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Date Range:</span>
+                                    <span className="text-slate-300 font-bold text-[10px]">
+                                        {new Date(historicalData[0].date).toLocaleDateString()} - {new Date(historicalData[historicalData.length - 1].date).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Avg Injuries:</span>
+                                    <span className="text-white font-bold">
+                                        {Math.round(historicalData.reduce((sum, d) => sum + d.injuries, 0) / historicalData.length)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-slate-400">Max Injuries:</span>
+                                    <span className="text-white font-bold">
+                                        {Math.max(...historicalData.map(d => d.injuries))}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-slate-900 p-6 rounded-xl border border-emerald-500/50">
+                        <h2 className="text-emerald-400 font-bold mb-3">🎲 MONTE CARLO SIMULATION</h2>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs text-slate-400 block mb-2">
+                                    Number of Iterations: <span className="text-emerald-400 font-bold">{iterations.toLocaleString()}</span>
+                                </label>
+                                <input 
+                                    type="range"
+                                    value={iterations}
+                                    onChange={(e) => setIterations(parseInt(e.target.value))}
+                                    min="100"
+                                    max="10000"
+                                    step="100"
+                                    className="w-full"
+                                    disabled={isRunning}
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                    <span>100</span>
+                                    <span>1,000</span>
+                                    <span>10,000</span>
+                                </div>
+                                <input 
+                                    type="number" 
+                                    value={iterations}
+                                    onChange={(e) => setIterations(Math.max(100, Math.min(50000, parseInt(e.target.value) || 1000)))}
+                                    min="100"
+                                    max="50000"
+                                    step="100"
+                                    className="w-full bg-slate-800 border border-slate-700 px-2 py-1 rounded text-xs mt-2"
+                                    disabled={isRunning}
+                                    placeholder="Custom (max 50,000)"
+                                />
+                            </div>
+                            <button 
+                                onClick={runSimulation}
+                                disabled={isRunning || !historicalData}
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 p-2 rounded font-bold transition-all text-sm"
+                            >
+                                {isRunning ? 'RUNNING SIMULATION...' : 'RUN SIMULATION'}
+                            </button>
+                            {!historicalData && (
+                                <p className="text-[10px] text-red-400 text-center italic">
+                                    Load NLP data first (SEND ALL →)
+                                </p>
+                            )}
+                            {simResults && (
+                                <div className="text-[10px] text-center text-slate-400 pt-2 border-t border-slate-700">
+                                    Last run: {simResults.iterations.toLocaleString()} iterations
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-6 rounded-xl border border-blue-500/50">
+                        <div className="flex justify-between items-center mb-2">
+                            <h2 className="text-blue-400 font-bold">ACTOR A (NEXT STEP)</h2>
+                            <input 
+                                value={actorA.name} 
+                                onChange={(e) => setActorA({...actorA, name: e.target.value})}
+                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
+                            />
+                        </div>
+                        <p className="text-[9px] text-cyan-400 mb-3 italic">Toggle expected behaviors for next time step ↓</p>
+                        <div className="space-y-2">
+                            {Object.keys(actorA.behaviors).map(key => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActorA({
+                                        ...actorA, 
+                                        behaviors: {...actorA.behaviors, [key]: !actorA.behaviors[key]}
+                                    })}
+                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorA.behaviors[key] ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    {key.toUpperCase()} {actorA.behaviors[key] ? '✓' : '✗'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-6 rounded-xl border border-red-500/50">
+                        <div className="flex justify-between items-center mb-2">
+                            <h2 className="text-red-400 font-bold">ACTOR B (NEXT STEP)</h2>
+                            <input 
+                                value={actorB.name} 
+                                onChange={(e) => setActorB({...actorB, name: e.target.value})}
+                                className="text-xs bg-slate-800 border border-slate-700 px-2 py-1 rounded w-24"
+                            />
+                        </div>
+                        <p className="text-[9px] text-cyan-400 mb-3 italic">Toggle expected behaviors for next time step ↓</p>
+                        <div className="space-y-2">
+                            {Object.keys(actorB.behaviors).map(key => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActorB({
+                                        ...actorB, 
+                                        behaviors: {...actorB.behaviors, [key]: !actorB.behaviors[key]}
+                                    })}
+                                    className={`w-full text-left p-2 rounded border text-xs font-bold transition-all ${actorB.behaviors[key] ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    {key.toUpperCase()} {actorB.behaviors[key] ? '✓' : '✗'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
+                        <h2 className="text-orange-400 font-bold mb-4">PREDICTED INJURY COUNT</h2>
+                        <div className="space-y-3">
+                            <div className="text-center p-2 bg-blue-900/20 rounded border border-blue-500/30">
+                                <div className="text-2xl font-bold text-blue-400">{avgInjuryA}</div>
+                                <div className="text-[10px] text-slate-400">Actor A Avg</div>
+                            </div>
+                            <div className="text-center p-2 bg-red-900/20 rounded border border-red-500/30">
+                                <div className="text-2xl font-bold text-red-400">{avgInjuryB}</div>
+                                <div className="text-[10px] text-slate-400">Actor B Avg</div>
+                            </div>
+                            <div className="text-center p-2 bg-emerald-900/20 rounded border border-emerald-500/30">
+                                <div className="text-2xl font-bold text-emerald-400">{avgInjuryCombined}</div>
+                                <div className="text-[10px] text-slate-400">Combined Max</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 min-h-[400px]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-emerald-400 font-bold">INJURY PROBABILITY (Next Time Step)</h2>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setActiveActor('A')}
+                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'A' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    A Only
+                                </button>
+                                <button 
+                                    onClick={() => setActiveActor('B')}
+                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'B' ? 'bg-red-600 border-red-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    B Only
+                                </button>
+                                <button 
+                                    onClick={() => setActiveActor('both')}
+                                    className={`text-xs px-3 py-1 rounded border transition-all ${activeActor === 'both' ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                >
+                                    Both
+                                </button>
+                            </div>
+                        </div>
+                        <div id="chart" className="w-full h-[400px]"></div>
+
+                        {simResults && simResults.transitionMatrixA && (
+                            <div className="mt-6">
+                                <div className="bg-cyan-900/20 border border-cyan-500/30 p-3 rounded mb-4">
+                                    <h3 className="text-xs font-bold text-cyan-400 mb-1">🔗 EMPIRICAL MARKOV CHAIN</h3>
+                                    <p className="text-[10px] text-cyan-200">
+                                        Built from {historicalData.length} sequential observations. Probability states: Low (0-33%), Med (33-67%), High (67-100%). Adjusted for next-step behaviors.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div className="bg-slate-800/50 p-4 rounded border border-blue-500/30">
+                                        <h3 className="text-xs font-bold text-blue-400 mb-2">ACTOR A TRANSITION MATRIX</h3>
+                                        <div className="text-[9px] font-mono">
+                                            <div className="flex gap-1 mb-1 text-slate-500">
+                                                <span className="w-12"></span>
+                                                <span className="w-16 text-center">→Low</span>
+                                                <span className="w-16 text-center">→Med</span>
+                                                <span className="w-16 text-center">→High</span>
+                                            </div>
+                                            {simResults.transitionMatrixA.map((row, i) => (
+                                                <div key={i} className="flex gap-1 mb-1">
+                                                    <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
+                                                    {row.map((val, j) => (
+                                                        <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-blue-400 font-bold' : val > 0.2 ? 'text-blue-300' : 'text-slate-500'}`}>
+                                                            {val.toFixed(2)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-800/50 p-4 rounded border border-red-500/30">
+                                        <h3 className="text-xs font-bold text-red-400 mb-2">ACTOR B TRANSITION MATRIX</h3>
+                                        <div className="text-[9px] font-mono">
+                                            <div className="flex gap-1 mb-1 text-slate-500">
+                                                <span className="w-12"></span>
+                                                <span className="w-16 text-center">→Low</span>
+                                                <span className="w-16 text-center">→Med</span>
+                                                <span className="w-16 text-center">→High</span>
+                                            </div>
+                                            {simResults.transitionMatrixB.map((row, i) => (
+                                                <div key={i} className="flex gap-1 mb-1">
+                                                    <span className="w-12 text-slate-400">{['Low', 'Med', 'High'][i]}:</span>
+                                                    {row.map((val, j) => (
+                                                        <span key={j} className={`w-16 text-center ${val > 0.4 ? 'text-red-400 font-bold' : val > 0.2 ? 'text-red-300' : 'text-slate-500'}`}>
+                                                            {val.toFixed(2)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30">
+                                        <h3 className="text-xs font-bold text-blue-400 mb-2">Actor A Steady-State</h3>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">Low:</span>
+                                            <span className="text-blue-300 font-bold">{(simResults.steadyStateA[0] * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">Medium:</span>
+                                            <span className="text-blue-300 font-bold">{(simResults.steadyStateA[1] * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">High:</span>
+                                            <span className="text-blue-300 font-bold">{(simResults.steadyStateA[2] * 100).toFixed(1)}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-red-900/20 p-3 rounded border border-red-500/30">
+                                        <h3 className="text-xs font-bold text-red-400 mb-2">Actor B Steady-State</h3>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">Low:</span>
+                                            <span className="text-red-300 font-bold">{(simResults.steadyStateB[0] * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">Medium:</span>
+                                            <span className="text-red-300 font-bold">{(simResults.steadyStateB[1] * 100).toFixed(1)}%</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-slate-400">High:</span>
+                                            <span className="text-red-300 font-bold">{(simResults.steadyStateB[2] * 100).toFixed(1)}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="text-[10px] text-slate-500 mt-4 italic text-center">
+                            Yellow = Historical injury baseline from NLP data. Blue/Red/Green = Predicted injury probability for next time step.
+                        </p>
+                    </div>
+
+                    {simResults && (
+                        <div className="bg-slate-900 p-6 rounded-xl border border-orange-500/50">
+                            <h2 className="text-orange-400 font-bold mb-4">📊 INJURY PROBABILITY STATISTICS</h2>
+                            <div className="space-y-4">
+                                <InjuryWireframe 
+                                    injuries={simResults.injuriesA} 
+                                    actorName={`${actorA.name} (Next Step)`}
+                                    color="#3b82f6"
+                                />
+                                <InjuryWireframe 
+                                    injuries={simResults.injuriesB} 
+                                    actorName={`${actorB.name} (Next Step)`}
+                                    color="#ef4444"
+                                />
+                                <InjuryWireframe 
+                                    injuries={simResults.injuriesCombined} 
+                                    actorName="Combined (Max)"
+                                    color="#10b981"
+                                />
+                            </div>
+                            <p className="text-[9px] text-slate-500 italic text-center mt-4 pt-3 border-t border-slate-700">
+                                95% CI (shaded), median (|), mean (●). Injury count predictions based on {simResults.iterations.toLocaleString()} Monte Carlo iterations.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(h(App));
+</script>
+```
+
 </body>
 </html>
